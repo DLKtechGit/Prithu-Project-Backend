@@ -11,14 +11,14 @@ const {createNewUser,
     userPasswordResetsendOtp,
     resetPasswordWithOtp,
     verifyOtp 
-}=require('../controllers/userAuthController')
+}=require('../controllers/authenticationControllers/userAuthController')
 
 const {createNewCreator,
   creatorLogin,
   creatorPasswordResetsendOtp,
   creatorverifyOtp,
   resetCreatorPasswordWithOtp ,
-}=require('../controllers/creatorAuthController')
+}=require('../controllers/authenticationControllers/creatorAuthController')
 
 const{
   createNewBusinessUser,
@@ -26,17 +26,27 @@ const{
   businessPasswordResetsendOtp,
   resetBusinessPasswordWithOtp,
   businessverifyOtp
-}=require('../controllers/businessAuthController')
+}=require('../controllers/authenticationControllers/businessAuthController')
 
 const{
   creatorFeedUpload,
   creatorFeedDelete,
   getCreatorFeeds,
-}=require('../controllers/creatorFeedController')
+}=require('../controllers/feedControllers/creatorFeedController')
 
 const{
   feedsWatchByUser,
-}=require('../controllers/feedsController')
+  mostWatchedFeeds,
+  getAllFeeds,
+}=require('../controllers/feedControllers/feedsController')
+
+const{
+  newAdmin,
+  adminLogin ,
+  adminPasswordResetsendOtp,
+  adminverifyOtp,
+  resetAdminPasswordWithOtp,
+}=require('../controllers/authenticationControllers/adminAuthController')
 
 
 
@@ -68,7 +78,7 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.join(__dirname, 'uploads')));
 
 // User Authentication Endpoints
-router.post('/auth/user/register',createNewUser);
+router.post('/auth/users/register',createNewUser);
 router.post('/auth/user/login',userLogin);
 router.post('/auth/user/otp-send',userPasswordResetsendOtp);
 router.post('/auth/user/verify-otp',verifyOtp);
@@ -80,6 +90,8 @@ router.post('/auth/creator/login',creatorLogin);
 router.post('/auth/creator/sent-otp',creatorPasswordResetsendOtp);
 router.post('/auth/creator/verify-otp',creatorverifyOtp);
 router.post('/auth/creator/reset-password',resetCreatorPasswordWithOtp);
+
+//Creator Feed API Endpoints
 router.post('/creator/feed',auth,creatorOnly,upload.single('file'),creatorFeedUpload);
 router.delete('/creator/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 router.get('/creator/getall/feeds',auth,creatorOnly,getCreatorFeeds);
@@ -93,13 +105,26 @@ router.post('/auth/business/verify-otp',businessverifyOtp);
 router.post('/auth/business/reset-password',resetBusinessPasswordWithOtp);
 
 
+//Admin Authentication API EndPoints
+router.post('/auth/admin/register',newAdmin);
+router.post('/auth/admin/login',adminLogin);
+router.post('/auth/admin/sent-otp',adminPasswordResetsendOtp);
+router.post('/auth/admin/verify-otp',adminverifyOtp);
+router.post('/auth/admin/reset-password',resetAdminPasswordWithOtp);
+router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeedUpload);
+// router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
+// router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
+
+
 //Feeds API EndPoints
+router.get('/all/feeds',getAllFeeds)
 router.post('/feeds/watchedbyuser',feedsWatchByUser);
+// router.post('/most/watched/feeds',mostWatchedFeeds);
 
 
 
 
-console.log('roots works properly')
+
 
 
 module.exports= router;
