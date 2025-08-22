@@ -57,6 +57,10 @@ const{
   getAllUserDetails,
 }=require('../controllers/userControllers/userDetailController')
 
+const{
+  getAllTags,
+}=require('../controllers/tagsController')
+
 
 
 
@@ -141,7 +145,7 @@ router.post('/feeds/watchedbyuser',feedsWatchByUser);
 
 
 //Tags API EndPoints
-
+router.get('/all/tags',getAllTags)
 
 
 

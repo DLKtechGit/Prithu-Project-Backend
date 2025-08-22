@@ -57,7 +57,7 @@ exports.creatorFeedUpload = async (req, res) => {
         console.log('exist tag')
         await Tags.findOneAndUpdate(
           { name: tagName },
-          { $addToSet: { feedsIds: newFeed._id } }
+          { $addToSet: { feedIds: newFeed._id } }
         );
       } else {
         // Create new tag document
