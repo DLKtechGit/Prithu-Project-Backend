@@ -40,7 +40,10 @@ exports.createNewUser = async (req, res) => {
     if (referralCode) {
       const referringUser = await User.findOne({ referralCode: referralCode });
 
-      //Incresed Referal Count 
+      //Incresed and Check Limt Referal Count 
+       const refferdLimt=await User.findOneAndUpdate(
+       referralCode,{$inc:{referralcount:{$lt:2}}})
+       
       referringUser.referralcount = (referringUser.referralcount || 0) + 1;
       await referringUser.save();
       

@@ -59,6 +59,7 @@ const{
 
 const{
   getAllTags,
+  getTagsWithId,
 }=require('../controllers/tagsController')
 
 
@@ -91,7 +92,7 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.join(__dirname, 'uploads')));
 
 // User Authentication Endpoints
-router.post('/auth/users/register',createNewUser);
+router.post('/auth/user/register',createNewUser);
 router.post('/auth/user/login',userLogin);
 router.post('/auth/user/otp-send',userPasswordResetsendOtp);
 router.post('/auth/exist/user/verify-otp',exitUserVerifyOtp,);
@@ -146,6 +147,7 @@ router.post('/feeds/watchedbyuser',feedsWatchByUser);
 
 //Tags API EndPoints
 router.get('/all/tags',getAllTags)
+router.get('/all/tags/:id',getTagsWithId)
 
 
 

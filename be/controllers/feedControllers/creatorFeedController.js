@@ -6,6 +6,7 @@ const Tags = require('../../models/tagModel');
 
 
 
+
 exports.creatorFeedUpload = async (req, res) => {
   try {
     const creatorId = req.userId;
@@ -15,8 +16,9 @@ exports.creatorFeedUpload = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-    
+    console.log(req.file.path)
     const existFeed = await Feed.findOne({ contentUrl: req.file.path });
+    console.log(existFeed)
     if (existFeed) {
       return res.status(400).json({ message: 'The video has already been uploaded' });
     }
@@ -51,10 +53,8 @@ exports.creatorFeedUpload = async (req, res) => {
     }
     for (const tagName of tagParse) {
 
-      let tag = await Tags.findOne({ name: tagName });
-      console.log(tag)
+      let tag = await Tags.findOne({ name: tagName });  
       if (tag) {
-        console.log('exist tag')
         await Tags.findOneAndUpdate(
           { name: tagName },
           { $addToSet: { feedIds: newFeed._id } }
