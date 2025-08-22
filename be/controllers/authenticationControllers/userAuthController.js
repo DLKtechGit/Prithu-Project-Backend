@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
-const { generateReferralCode } = require('../../middlewares/generateReferralCode'); 
+const { generateReferralCode } = require('../../middlewares/generateReferralCode');
+const otpStore=new Map();
 
 // Create nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -18,7 +19,7 @@ const transporter = nodemailer.createTransport({
 exports.createNewUser = async (req, res) => {
   try {
     const { username, email, password, referralCode } = req.body;
-      console.log({ username, email, password, referralCode} )
+    console.log({ username, email, password, referralCode })
     // Check if username or email already exists
     if (await User.findOne({ username })) {
       return res.status(400).json({ error: 'Username already exists' });
@@ -33,13 +34,20 @@ exports.createNewUser = async (req, res) => {
       referralCodeGenerated = generateReferralCode(username);
     }
 
+
     // Find referring user by provided referral code
     let referredByUserId = null;
     if (referralCode) {
       const referringUser = await User.findOne({ referralCode: referralCode });
+
+      //Incresed Referal Count 
+      referringUser.referralcount = (referringUser.referralcount || 0) + 1;
+      await referringUser.save();
+      
       if (!referringUser) {
         return res.status(400).json({ error: 'Invalid referral code' });
       }
+
       referredByUserId = referringUser._id;
     }
 
@@ -56,7 +64,15 @@ exports.createNewUser = async (req, res) => {
       referredByUserId,
     });
 
-     await user.save();
+    await user.save();
+
+
+    if (referralCode) {
+      await User.findOneAndUpdate(
+        { referralCode },
+        { $addToSet: { referredPeople: user._id } }
+      );
+    }
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -115,6 +131,7 @@ exports.userPasswordResetsendOtp = async (req, res) => {
 
     // Generate 6-digit OTP and expiry (15 minutes)
     const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email, { tempOtp, expires: Date.now() + 5 * 60 * 1000 }); 
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
 
     // Save OTP and expiry on user document
@@ -144,12 +161,47 @@ exports.userPasswordResetsendOtp = async (req, res) => {
   }
 };
 
+
 // Verify OTP
-exports.verifyOtp = async (req, res) => {
+exports.newUserVerifyOtp = async (req, res) => {
+
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and OTP are required' });
+  }
+
+  const record = otpStore.get(email);
+
+  
+
+  if (!record) {
+    return res.status(400).json({ error: 'No OTP found for this email' });
+  }
+
+  if (Date.now() > record.expires) {
+    otpStore.delete(email);
+    return res.status(400).json({ error: 'OTP has expired' });
+  }
+
+  if (record.tempOtp === otp) {
+    otpStore.delete(email);
+
+    // Successful OTP verification for new user (ready for registration)
+    return res.status(200).json({
+      verified: true,
+      message: 'OTP verified successfully. You can now register.'
+    });
+  } else {
+    return res.status(400).json({ error: 'Invalid OTP' });
+  }
+};
+
+exports.exitUserVerifyOtp = async (req, res) => {
   try {
-    
+
     const { email, otp } = req.body;
-   
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ error: 'Invalid email or OTP' });

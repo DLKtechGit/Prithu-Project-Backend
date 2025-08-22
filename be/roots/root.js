@@ -10,13 +10,15 @@ const {createNewUser,
     userLogin,
     userPasswordResetsendOtp,
     resetPasswordWithOtp,
-    verifyOtp 
+    exitUserVerifyOtp, 
+    newUserVerifyOtp,
 }=require('../controllers/authenticationControllers/userAuthController')
 
 const {createNewCreator,
   creatorLogin,
   creatorPasswordResetsendOtp,
-  creatorverifyOtp,
+  existCreatorVerifyOtp,
+  newCreatorVerifyOtp,
   resetCreatorPasswordWithOtp ,
 }=require('../controllers/authenticationControllers/creatorAuthController')
 
@@ -25,7 +27,8 @@ const{
   businessLogin,
   businessPasswordResetsendOtp,
   resetBusinessPasswordWithOtp,
-  businessverifyOtp
+  existBusinessVerifyOtp,
+  newBusinessVerifyOtp,
 }=require('../controllers/authenticationControllers/businessAuthController')
 
 const{
@@ -44,9 +47,15 @@ const{
   newAdmin,
   adminLogin ,
   adminPasswordResetsendOtp,
-  adminverifyOtp,
+  existAdminVerifyOtp,
+  newAdminVerifyOtp,
   resetAdminPasswordWithOtp,
 }=require('../controllers/authenticationControllers/adminAuthController')
+
+const{
+  getUserdetailWithID,
+  getAllUserDetails,
+}=require('../controllers/userControllers/userDetailController')
 
 
 
@@ -81,18 +90,25 @@ app.use('/uploads', (req, res, next) => {
 router.post('/auth/users/register',createNewUser);
 router.post('/auth/user/login',userLogin);
 router.post('/auth/user/otp-send',userPasswordResetsendOtp);
-router.post('/auth/user/verify-otp',verifyOtp);
+router.post('/auth/exist/user/verify-otp',exitUserVerifyOtp,);
+router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',resetPasswordWithOtp) ;
+
+//Get Users detail with id
+router.post('/user/detail:id',getUserdetailWithID)
+// router.post('/user/detail:id',getAllUserDetails)
+
 
 //Creator Authentication API EndPoints 
 router.post('/auth/creator/register',createNewCreator);
 router.post('/auth/creator/login',creatorLogin);
 router.post('/auth/creator/sent-otp',creatorPasswordResetsendOtp);
-router.post('/auth/creator/verify-otp',creatorverifyOtp);
+router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
+router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
 router.post('/auth/creator/reset-password',resetCreatorPasswordWithOtp);
 
 //Creator Feed API Endpoints
-router.post('/creator/feed',auth,creatorOnly,upload.single('file'),creatorFeedUpload);
+router.post('/creator/feed',upload.single('file'),creatorFeedUpload);
 router.delete('/creator/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 router.get('/creator/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
@@ -101,7 +117,8 @@ router.get('/creator/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 router.post('/auth/business/register',createNewBusinessUser);
 router.post('/auth/business/login',businessLogin);
 router.post('/auth/business/sent-otp',businessPasswordResetsendOtp);
-router.post('/auth/business/verify-otp',businessverifyOtp);
+router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
+router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
 router.post('/auth/business/reset-password',resetBusinessPasswordWithOtp);
 
 
@@ -109,7 +126,8 @@ router.post('/auth/business/reset-password',resetBusinessPasswordWithOtp);
 router.post('/auth/admin/register',newAdmin);
 router.post('/auth/admin/login',adminLogin);
 router.post('/auth/admin/sent-otp',adminPasswordResetsendOtp);
-router.post('/auth/admin/verify-otp',adminverifyOtp);
+router.post('/auth/exist/admin/verify-otp',existAdminVerifyOtp);
+router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',resetAdminPasswordWithOtp);
 router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeedUpload);
 // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
@@ -120,6 +138,12 @@ router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeed
 router.get('/all/feeds',getAllFeeds)
 router.post('/feeds/watchedbyuser',feedsWatchByUser);
 // router.post('/most/watched/feeds',mostWatchedFeeds);
+
+
+//Tags API EndPoints
+
+
+
 
 
 

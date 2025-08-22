@@ -27,6 +27,10 @@ const usersSchema = new mongoose.Schema({
   default: null,
   },
 
+  referralcount:{type:Number,default:0},
+
+  referredPeople:[{type:mongoose.Schema.Types.ObjectId,ref:'User',default:null}],
+
   websiteLanguage: { type: String, default: 'en' },
   feedLanguage: { type: String, default: 'en' },
   interests: { type: [String], default: [] },

@@ -1,19 +1,21 @@
-const Feed=require('../../models/feedModel');
-const Creator=require('../../models/creatorModel');
+const Feed = require('../../models/feedModel');
+const Creator = require('../../models/creatorModel');
 const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
-const { log } = require('console');
+const Tags = require('../../models/tagModel');
+
 
 
 exports.creatorFeedUpload = async (req, res) => {
   try {
     const creatorId = req.userId;
-    const { language, category, tags = [], type } = req.body;
+    const { language, category, type, tags } = req.body;
+
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-
+    
     const existFeed = await Feed.findOne({ contentUrl: req.file.path });
     if (existFeed) {
       return res.status(400).json({ message: 'The video has already been uploaded' });
@@ -22,11 +24,11 @@ exports.creatorFeedUpload = async (req, res) => {
     let videoDuration = null;
     if (type === 'video' && req.file.mimetype.startsWith('video/')) {
       videoDuration = await getVideoDurationInSeconds(req.file.path);
-    
-      if (videoDuration >= 90.0) { 
+      if (videoDuration >= 90.0) {
         return res.status(400).json({ message: 'Upload video below 90 seconds' });
       }
     }
+
     const newFeed = new Feed({
       type,
       language,
@@ -36,15 +38,42 @@ exports.creatorFeedUpload = async (req, res) => {
       createdBy: creatorId,
       contentUrl: req.file.path,
     });
-
     await newFeed.save();
+
+    // Handle tags
+    let tagParse;
+    if (typeof tags === 'string') {
+      try {
+        tagParse = JSON.parse(tags);
+      } catch (e) {
+        return res.status(400).json({ message: 'Invalid tags format' });
+      }
+    }
+    for (const tagName of tagParse) {
+
+      let tag = await Tags.findOne({ name: tagName });
+      console.log(tag)
+      if (tag) {
+        console.log('exist tag')
+        await Tags.findOneAndUpdate(
+          { name: tagName },
+          { $addToSet: { feedsIds: newFeed._id } }
+        );
+      } else {
+        // Create new tag document
+        tag = new Tags({
+          name: tagName,
+          feedIds:[newFeed._id]
+        });
+        await tag.save().then(data=> {console.log('tag saved')})
+      }
+    }
 
     await Creator.findByIdAndUpdate(
       creatorId,
       { $push: { feeds: newFeed._id } },
       { new: true }
     );
-
 
     return res.status(201).json({
       message: 'Feed created successfully',
@@ -59,10 +88,11 @@ exports.creatorFeedUpload = async (req, res) => {
 
 
 
+
 exports.creatorFeedDelete = async (req, res) => {
   try {
-    const creatorId = req.userId; 
-    const feedId = req.params.id; 
+    const creatorId = req.userId;
+    const feedId = req.params.id;
 
     // Find the feed 
     const feed = await Feed.findById(feedId);
@@ -90,7 +120,7 @@ exports.creatorFeedDelete = async (req, res) => {
       fs.unlink(feed.contentUrl, (err) => {
         if (err) {
           console.error('Failed to delete file:', err);
-         
+
         } else {
           console.log('Uploaded file deleted:', feed.contentUrl);
         }

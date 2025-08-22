@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
+const otpStore=new Map();
 
 
 // Create nodemailer transporter
@@ -107,7 +108,8 @@ exports.businessPasswordResetsendOtp = async (req, res) => {
 
     // Generate 6-digit OTP and expiry (15 minutes)
     const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+     otpStore.set(email, { tempOtp, expires: Date.now() + 5 * 60 * 1000 }); 
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000 );
      console.log(tempOtp)
     // Save OTP and expiry on business document
     business.otpCode = tempOtp;
@@ -139,7 +141,41 @@ exports.businessPasswordResetsendOtp = async (req, res) => {
 };
 
 // Verify OTP
-exports.businessverifyOtp = async (req, res) => {
+
+
+exports.newBusinessVerifyOtp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and OTP are required' });
+  }
+
+  const record = otpStore.get(email);
+
+  if (!record) {
+    return res.status(400).json({ error: 'No OTP found for this email' });
+  }
+
+  if (Date.now() > record.expires) {
+    otpStore.delete(email);
+    return res.status(400).json({ error: 'OTP has expired' });
+  }
+
+  if (record.tempOtp === otp) {
+    otpStore.delete(email);
+
+    // Successful OTP verification for new user (ready for registration)
+    return res.status(200).json({
+      verified: true,
+      message: 'OTP verified successfully. You can now register.'
+    });
+  } else {
+    return res.status(400).json({ error: 'Invalid OTP' });
+  }
+};
+
+
+exports.existBusinessVerifyOtp= async (req, res) => {
   try {
     
     const { email, otp } = req.body;
