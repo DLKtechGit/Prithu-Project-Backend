@@ -1,5 +1,5 @@
 const { param } = require("../../roots/root")
-const Users = require("../../models/userModel")
+const Users = require("../../models/userModels/userModel")
 
 exports.getUserdetailWithID = async (req, res) => {
   try {

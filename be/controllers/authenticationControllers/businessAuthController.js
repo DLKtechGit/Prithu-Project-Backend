@@ -204,7 +204,7 @@ exports.existBusinessVerifyOtp= async (req, res) => {
 };
 
 // Reset Password with OTP
-exports.resetBusinessPasswordWithOtp = async (req, res) => {
+exports.businessPasswordReset = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     const business = await Business.findOne({ businessEmail:email });

@@ -203,20 +203,16 @@ exports.existAdminVerifyOtp = async (req, res) => {
 
 
 // Reset Password with OTP
-exports.resetAdminPasswordWithOtp = async (req, res) => {
+exports.adminPasswordReset = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email, newPassword } = req.body;
     const admin = await Admin.findOne({ email:email });
     if (!admin) {
-      return res.status(400).json({ error: 'Invalid email or OTP' });
-    }
-
-    if (!admin.otpCode || !admin.otpExpiresAt || admin.otpCode !== otp || admin.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ error: 'Invalid email' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    admin.adminPasswordHash = passwordHash;
+    admin.passwordHash = passwordHash;
 
     // Clear OTP fields after successful reset
     admin.otpCode = undefined;

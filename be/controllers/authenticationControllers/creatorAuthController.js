@@ -201,16 +201,12 @@ exports.newCreatorVerifyOtp = async (req, res) => {
 };
 
 // Reset Password with OTP
-exports.resetCreatorPasswordWithOtp = async (req, res) => {
+exports.creatorPasswordReset = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email,newPassword } = req.body;
     const creator = await Creator.findOne({ creatorEmail:email });
     if (!creator) {
-      return res.status(400).json({ error: 'Invalid email or OTP' });
-    }
-
-    if (!creator.otpCode || !creator.otpExpiresAt || creator.otpCode !== otp || creator.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ error: 'Resend the Otp' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

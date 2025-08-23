@@ -10,7 +10,7 @@ const adminOnly=require('../middlewares/adminOnly')
 const {createNewUser,
     userLogin,
     userSendOtp,
-    resetPasswordWithOtp,
+    userPasswordReset,
     exitUserVerifyOtp, 
     newUserVerifyOtp,
 }=require('../controllers/authenticationControllers/userAuthController')
@@ -20,14 +20,14 @@ const {createNewCreator,
   creatorSendOtp,
   existCreatorVerifyOtp,
   newCreatorVerifyOtp,
-  resetCreatorPasswordWithOtp ,
+  creatorPasswordReset ,
 }=require('../controllers/authenticationControllers/creatorAuthController')
 
 const{
   createNewBusinessUser,
   businessLogin,
   businessSendOtp,
-  resetBusinessPasswordWithOtp,
+  businessPasswordReset,
   existBusinessVerifyOtp,
   newBusinessVerifyOtp,
 }=require('../controllers/authenticationControllers/businessAuthController')
@@ -50,7 +50,7 @@ const{
   adminSendOtp,
   existAdminVerifyOtp,
   newAdminVerifyOtp,
-  resetAdminPasswordWithOtp,
+  adminPasswordReset,
 }=require('../controllers/authenticationControllers/adminAuthController')
 
 const{
@@ -62,6 +62,10 @@ const{
   getAllTags,
   getTagsWithId,
 }=require('../controllers/tagsController')
+
+const{
+  userProfileDetailUpdate,
+}=require('../controllers/userControllers/userProfileController')
 
 
 
@@ -98,10 +102,10 @@ router.post('/auth/user/login',userLogin);
 router.post('/auth/user/otp-send',userSendOtp);
 router.post('/auth/exist/user/verify-otp',exitUserVerifyOtp,);
 router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
-router.post('/auth/user/reset-password',resetPasswordWithOtp) ;
+router.post('/auth/user/reset-password',userPasswordReset) ;
 
 //Get Users detail with id
-
+ router.post('/user/profile/detail/update/:id',userProfileDetailUpdate)
 
 
 
@@ -111,7 +115,7 @@ router.post('/auth/creator/login',creatorLogin);
 router.post('/auth/creator/sent-otp',creatorSendOtp);
 router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
 router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
-router.post('/auth/creator/reset-password',resetCreatorPasswordWithOtp);
+router.post('/auth/creator/reset-password',creatorPasswordReset);
 
 //Creator Feed API Endpoints
 router.post('/creator/feed',upload.single('file'),creatorFeedUpload);
@@ -125,7 +129,7 @@ router.post('/auth/business/login',businessLogin);
 router.post('/auth/business/sent-otp',businessSendOtp);
 router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
 router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
-router.post('/auth/business/reset-password',resetBusinessPasswordWithOtp);
+router.post('/auth/business/reset-password',businessPasswordReset);
 
 
 //Admin Authentication API EndPoints
@@ -134,7 +138,7 @@ router.post('/auth/admin/login',adminLogin);
 router.post('/auth/admin/sent-otp',adminSendOtp);
 router.post('/auth/exist/admin/verify-otp',existAdminVerifyOtp);
 router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
-router.post('/auth/admin/reset-password',resetAdminPasswordWithOtp);
+router.post('/auth/admin/reset-password',adminPasswordReset);
 
 //Admin Feed API EndPoints
 router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeedUpload);

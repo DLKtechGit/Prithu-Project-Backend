@@ -1,5 +1,5 @@
 const Feed = require('../../models/feedModel');
-const User = require('../../models/userModel');
+const User = require('../../models/userModels/userModel');
 const Creator = require('../../models/creatorModel');
 const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
 

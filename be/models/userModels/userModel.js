@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+
 const usersSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -33,7 +34,7 @@ const usersSchema = new mongoose.Schema({
 
   referralcount:{type:Number,default:0},
 
-  referredPeople:[{type:mongoose.Schema.Types.ObjectId,ref:'User',default:null}],
+  referredPeople:[{type:mongoose.Schema.Types.ObjectId,ref:'User'}],
 
   websiteLanguage: { type: String, default: 'en' },
   feedLanguage: { type: String, default: 'en' },
@@ -42,11 +43,9 @@ const usersSchema = new mongoose.Schema({
   likedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Feed' }],
   downloadedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Feed' }],
 
-  profileSettings: {
-    displayName: { type: String, default: '' },
-    avatarUrl: { type: String, default: '' },
-    bio: { type: String, default: '' },
-  },
+  profileSettings:[{ type: mongoose.Schema.Types.ObjectId, ref: 'UserProfiles' }],
+
+  
   role:{type:String,enum:['admin','creator','user','business'],default:'user'},
 
   // Creator following 

@@ -1,4 +1,4 @@
-const User = require('../../models/userModel');
+const User = require('../../models/userModels/userModel');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
@@ -53,10 +53,14 @@ if (referralCode) {
 
     return res.status(400).json({ message: 'Referral usage limit reached' });
   }
-
   // Increment referral count atomically
   referringUser.referralcount = (referringUser.referralcount || 0) + 1;
   await referringUser.save();
+  
+  await User.findByIdAndUpdate({
+    referringUser:referredByUserId,
+    
+  },{$inc:{referralcount:1}})
 
   // Proceed with your referral reward logic
   referredByUserId  = referringUser._id;
@@ -238,23 +242,15 @@ exports.exitUserVerifyOtp = async (req, res) => {
 };
 
 // Reset Password with OTP
-exports.resetPasswordWithOtp = async (req, res) => {
+exports.userPasswordReset = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email,newPassword } = req.body;
 
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email,and New assword are required' });
     }
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid email or OTP' });
-    }
-
-    if (!user.otpCode || !user.otpExpiresAt || user.otpCode !== otp || user.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
-    }
-
     // Hash new password securely
     const passwordHash = await bcrypt.hash(newPassword, 10);
     user.passwordHash = passwordHash;
