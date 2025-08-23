@@ -16,7 +16,9 @@ exports.getUserdetailWithID = async (req, res) => {
 };
 
  exports.getAllUserDetails=async (req,res)=>
+  
 {
+  console.log('working')
   try{
       const allUsers=await Users.find()
       if(!allUsers)res.status(400).json({ message: "Users Details not Found" });

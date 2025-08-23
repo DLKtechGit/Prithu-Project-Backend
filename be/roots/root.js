@@ -141,7 +141,7 @@ router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeed
 
 
 //Admin User API EndPoints
-router.post('/admin/getall/users', auth, adminOnly,getAllUserDetails);
+router.get('/admin/getall/users',getAllUserDetails);
 // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
