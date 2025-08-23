@@ -35,14 +35,42 @@ exports.createNewUser = async (req, res) => {
     }
 
 
-    // Find referring user by provided referral code
-    let referredByUserId = null;
-    if (referralCode) {
+    // RefferalCode Validation
+if (referralCode) {
+  // Find user with this referral code who is still valid for referral usage
+  const referringUser = await User.findOne({ referralCode });
+
+  if (!referringUser || !referringUser.referralCodeIsValid) {
+    return res.status(400).json({ message: 'Referral code is expired or invalid' });
+  }
+
+  // Check current referral count
+  if (referringUser.referralcount >= 2) { // 2 is your limit
+    // Optionally, mark referralCodeIsValid as false to make code invalid
+    referringUser.referralCodeIsValid = false;
+    await referringUser.save();
+
+    return res.status(400).json({ message: 'Referral usage limit reached' });
+  }
+
+  // Increment referral count atomically
+  referringUser.referralcount = (referringUser.referralcount || 0) + 1;
+  await referringUser.save();
+
+  // Proceed with your referral reward logic
+  referredPeople = referringUser._id;
+}
+
+    let referredByUserId= null;
+
+    const refferdLimit=await User.findOneAndUpdate(
+       referralCode,{$inc:{referralcount:{$lt:2}}})
+
+    if (refferdLimit) {
       const referringUser = await User.findOne({ referralCode: referralCode });
 
       //Incresed and Check Limt Referal Count 
-       const refferdLimt=await User.findOneAndUpdate(
-       referralCode,{$inc:{referralcount:{$lt:2}}})
+       
        
       referringUser.referralcount = (referringUser.referralcount || 0) + 1;
       await referringUser.save();

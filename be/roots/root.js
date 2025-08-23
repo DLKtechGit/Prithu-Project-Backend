@@ -5,6 +5,7 @@ const app=express();
 const path=require('path')
 const auth=require('../middlewares/jwtAuthentication');
 const creatorOnly=require('../middlewares/creatorOnly');
+const adminOnly=require('../middlewares/adminOnly')
 
 const {createNewUser,
     userLogin,
@@ -100,8 +101,8 @@ router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',resetPasswordWithOtp) ;
 
 //Get Users detail with id
-router.post('/user/detail:id',getUserdetailWithID)
-// router.post('/user/detail:id',getAllUserDetails)
+
+
 
 
 //Creator Authentication API EndPoints 
@@ -134,7 +135,13 @@ router.post('/auth/admin/sent-otp',adminPasswordResetsendOtp);
 router.post('/auth/exist/admin/verify-otp',existAdminVerifyOtp);
 router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',resetAdminPasswordWithOtp);
+
+//Admin Feed API EndPoints
 router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeedUpload);
+
+
+//Admin User API EndPoints
+router.post('/admin/getall/users', auth, adminOnly,getAllUserDetails);
 // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 

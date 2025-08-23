@@ -21,6 +21,10 @@ const usersSchema = new mongoose.Schema({
     type: String, 
   },
 
+  referralCodeUsageLimt:{type:Number,default:2},
+
+  referralCodeIsValid:{type:Boolean,default:true},
+
   referredByUserId: {
   type: mongoose.Schema.Types.ObjectId,
   ref: 'User',
