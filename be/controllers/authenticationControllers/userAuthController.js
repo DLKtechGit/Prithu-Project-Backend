@@ -5,8 +5,7 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { generateReferralCode } = require('../../middlewares/generateReferralCode');
 const otpStore=new Map();
-let  tempOtp;
-let otpExpires;
+
 
 // Create nodemailer transporter
 const transporter = nodemailer.createTransport({

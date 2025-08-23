@@ -97,31 +97,40 @@ exports.creatorLogin = async (req, res) => {
 
 
 
-exports.creatorPasswordResetsendOtp = async (req, res) => {
+exports.creatorSendOtp = async (req, res) => {
   try {
     const { email } = req.body;
-    const creator = await Creator.findOne({ email });
-    if (!creator) {
-      return res.status(400).json({ error: 'Email not found' });
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Generate 6-digit OTP and expiry (15 minutes)
-    const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000 );
-     otpStore.set(email, { tempOtp, expires: Date.now() + 5 * 60 * 1000 }); 
-     console.log(tempOtp)
-    // Save OTP and expiry on creator document
-    creator.otpCode = tempOtp;
-    creator.otpExpiresAt = otpExpires;
-    await creator.save();
+    let tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let otpExpires;
+
+    const user = await Creator.findOne({ email });
+
+    if (user) {
+      otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      // Save OTP and expiry on user document
+      user.otpCode = tempOtp;
+      user.otpExpiresAt = otpExpires;
+      await user.save();
+    } else {
+      otpExpires = Date.now() + 5 * 60 * 1000;
+      // Store OTP and expiration for this email in otpStore
+      otpStore.set(email, { tempOtp, expires: otpExpires });
+    }
 
     // Send OTP email
     const mailOptions = {
       from: process.env.MAIL_USER,
-      to: creator.creatorEmail,
+      to: email,
       subject: 'Prithu Password Reset OTP',
       text: `Your OTP for password reset is: ${tempOtp}. It is valid for 15 minutes.`,
     };
+
+    console.log(tempOtp)
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
@@ -136,6 +145,8 @@ exports.creatorPasswordResetsendOtp = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 // Verify OTP
 exports.existCreatorVerifyOtp = async (req, res) => {

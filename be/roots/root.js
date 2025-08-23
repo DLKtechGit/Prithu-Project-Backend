@@ -17,7 +17,7 @@ const {createNewUser,
 
 const {createNewCreator,
   creatorLogin,
-  creatorPasswordResetsendOtp,
+  creatorSendOtp,
   existCreatorVerifyOtp,
   newCreatorVerifyOtp,
   resetCreatorPasswordWithOtp ,
@@ -26,7 +26,7 @@ const {createNewCreator,
 const{
   createNewBusinessUser,
   businessLogin,
-  businessPasswordResetsendOtp,
+  businessSendOtp,
   resetBusinessPasswordWithOtp,
   existBusinessVerifyOtp,
   newBusinessVerifyOtp,
@@ -47,7 +47,7 @@ const{
 const{
   newAdmin,
   adminLogin ,
-  adminPasswordResetsendOtp,
+  adminSendOtp,
   existAdminVerifyOtp,
   newAdminVerifyOtp,
   resetAdminPasswordWithOtp,
@@ -108,7 +108,7 @@ router.post('/auth/user/reset-password',resetPasswordWithOtp) ;
 //Creator Authentication API EndPoints 
 router.post('/auth/creator/register',createNewCreator);
 router.post('/auth/creator/login',creatorLogin);
-router.post('/auth/creator/sent-otp',creatorPasswordResetsendOtp);
+router.post('/auth/creator/sent-otp',creatorSendOtp);
 router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
 router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
 router.post('/auth/creator/reset-password',resetCreatorPasswordWithOtp);
@@ -122,7 +122,7 @@ router.get('/creator/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 // Business Authentication API EndPoints
 router.post('/auth/business/register',createNewBusinessUser);
 router.post('/auth/business/login',businessLogin);
-router.post('/auth/business/sent-otp',businessPasswordResetsendOtp);
+router.post('/auth/business/sent-otp',businessSendOtp);
 router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
 router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
 router.post('/auth/business/reset-password',resetBusinessPasswordWithOtp);
@@ -131,7 +131,7 @@ router.post('/auth/business/reset-password',resetBusinessPasswordWithOtp);
 //Admin Authentication API EndPoints
 router.post('/auth/admin/register',newAdmin);
 router.post('/auth/admin/login',adminLogin);
-router.post('/auth/admin/sent-otp',adminPasswordResetsendOtp);
+router.post('/auth/admin/sent-otp',adminSendOtp);
 router.post('/auth/exist/admin/verify-otp',existAdminVerifyOtp);
 router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',resetAdminPasswordWithOtp);

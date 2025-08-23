@@ -97,38 +97,47 @@ exports.adminLogin = async (req, res) => {
 };
 
 // Request Password Reset OTP
-exports.adminPasswordResetsendOtp = async (req, res) => {
+exports.adminSendOtp = async (req, res) => {
   try {
     const { email } = req.body;
-    const admin = await Admin.findOne({ email });
-    if (!admin) {
-      return res.status(400).json({ error: 'Email not found' });
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Generate 6-digit OTP and expiry (15 minutes)
-    const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-    otpStore.set(email, { tempOtp, expires: Date.now() + 5 * 60 * 1000 }); 
-     console.log(tempOtp)
-    // Save OTP and expiry on admin document
-    admin.otpCode = tempOtp;
-    admin.otpExpiresAt = otpExpires;
-    await admin.save();
+    let tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let otpExpires;
+
+    const user = await Admin.findOne({ email });
+
+    if (user) {
+      otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      // Save OTP and expiry on user document
+      user.otpCode = tempOtp;
+      user.otpExpiresAt = otpExpires;
+      await user.save();
+    } else {
+      otpExpires = Date.now() + 5 * 60 * 1000;
+      // Store OTP and expiration for this email in otpStore
+      otpStore.set(email, { tempOtp, expires: otpExpires });
+    }
 
     // Send OTP email
     const mailOptions = {
       from: process.env.MAIL_USER,
-      to: admin.email,
+      to: email,
       subject: 'Prithu Password Reset OTP',
       text: `Your OTP for password reset is: ${tempOtp}. It is valid for 15 minutes.`,
     };
+
+    console.log(tempOtp)
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.error('Error sending OTP email:', error);
         return res.status(500).json({ error: 'Failed to send OTP email' });
       } else {
-        console.log('OTP email sent:', info.response,tempOtp);
+        console.log('OTP email sent:', info.response);
         return res.json({ message: 'OTP sent to email' });
       }
     });
@@ -136,6 +145,7 @@ exports.adminPasswordResetsendOtp = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 exports.newAdminVerifyOtp = async (req, res) => {
   const { email, otp } = req.body;

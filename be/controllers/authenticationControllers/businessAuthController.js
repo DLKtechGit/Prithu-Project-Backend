@@ -98,47 +98,55 @@ exports.businessLogin = async (req, res) => {
 };
 
 // Request Password Reset OTP
-exports.businessPasswordResetsendOtp = async (req, res) => {
-  try {
-    const { email } = req.body;
-    const business = await Business.findOne({  businessEmail:email });
-    if (!business) {
-      return res.status(400).json({ error: 'Email not found' });
-    }
-
-    // Generate 6-digit OTP and expiry (15 minutes)
-    const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
-     otpStore.set(email, { tempOtp, expires: Date.now() + 5 * 60 * 1000 }); 
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000 );
-     console.log(tempOtp)
-    // Save OTP and expiry on business document
-    business.otpCode = tempOtp;
-    business.otpExpiresAt = otpExpires;
-    await business.save();
-
-   
-
-    // Send OTP email
-    const mailOptions = {
-      from: process.env.MAIL_USER,
-      to: business.businessEmail,
-      subject: 'Prithu Password Reset OTP',
-      text: `Your OTP for password reset is: ${tempOtp}. It is valid for 15 minutes.`,
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error('Error sending OTP email:', error);
-        return res.status(500).json({ error: 'Failed to send OTP email' });
-      } else {
-        console.log('OTP email sent:', info.response);
-        return res.json({ message: 'OTP sent to email' });
+exports.businessSendOtp = async (req, res) => {
+    try {
+      const { email } = req.body;
+  
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
       }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+  
+      let tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      let otpExpires;
+  
+      const user = await Business.findOne({ email });
+  
+      if (user) {
+        otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+        // Save OTP and expiry on user document
+        user.otpCode = tempOtp;
+        user.otpExpiresAt = otpExpires;
+        await user.save();
+      } else {
+        otpExpires = Date.now() + 5 * 60 * 1000;
+        // Store OTP and expiration for this email in otpStore
+        otpStore.set(email, { tempOtp, expires: otpExpires });
+      }
+  
+      // Send OTP email
+      const mailOptions = {
+        from: process.env.MAIL_USER,
+        to: email,
+        subject: 'Prithu Password Reset OTP',
+        text: `Your OTP for password reset is: ${tempOtp}. It is valid for 15 minutes.`,
+      };
+  
+      console.log(tempOtp)
+  
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending OTP email:', error);
+          return res.status(500).json({ error: 'Failed to send OTP email' });
+        } else {
+          console.log('OTP email sent:', info.response);
+          return res.json({ message: 'OTP sent to email' });
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+  
 
 // Verify OTP
 
