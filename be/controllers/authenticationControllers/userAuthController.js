@@ -190,16 +190,10 @@ exports.userSendOtp = async (req, res) => {
 
 // Verify OTP
 exports.newUserVerifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const { otp } = req.body;
 
-  if (!email || !otp) {
+  if (!otp) {
     return res.status(400).json({ error: 'Email and OTP are required' });
-  }
-
-  const record = otpStore.get(email);
-
-  if (!record) {
-    return res.status(400).json({ error: 'No OTP found for this email' });
   }
 
   if (Date.now() > record.expires) {
