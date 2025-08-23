@@ -11,7 +11,7 @@ const {createNewUser,
     userLogin,
     userSendOtp,
     userPasswordReset,
-    exitUserVerifyOtp, 
+    existUserVerifyOtp, 
     newUserVerifyOtp,
 }=require('../controllers/authenticationControllers/userAuthController')
 
@@ -100,7 +100,7 @@ app.use('/uploads', (req, res, next) => {
 router.post('/auth/user/register',createNewUser);
 router.post('/auth/user/login',userLogin);
 router.post('/auth/user/otp-send',userSendOtp);
-router.post('/auth/exist/user/verify-otp',exitUserVerifyOtp,);
+router.post('/auth/exist/user/verify-otp',existUserVerifyOtp,);
 router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
 
