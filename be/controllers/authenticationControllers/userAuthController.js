@@ -222,9 +222,9 @@ exports.newUserVerifyOtp = async (req, res) => {
 exports.exitUserVerifyOtp = async (req, res) => {
   try {
 
-    const { email, otp } = req.body;
+    const { otp } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ otpCode:otp });
     if (!user) {
       return res.status(400).json({ error: 'Invalid email or OTP' });
     }
@@ -233,7 +233,7 @@ exports.exitUserVerifyOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
-    res.json({ message: 'OTP verified successfully' });
+    res.json({ message: 'OTP verified successfully',email:user.email });
     tempOtp='';
     otpExpires='';
   } catch (error) {
