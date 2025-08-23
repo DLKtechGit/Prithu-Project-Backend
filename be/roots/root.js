@@ -72,7 +72,7 @@ const{
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log(file)
+    console.log(req)
     if (file.mimetype.startsWith('image/')){
       cb(null, './uploads/images');
     } else if (file.mimetype.startsWith('video/')) {
@@ -105,9 +105,7 @@ router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
 
 //Get Users detail with id
- router.post('/user/profile/detail/update/:id',userProfileDetailUpdate)
-
-
+ router.post('/user/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
 
 //Creator Authentication API EndPoints 
 router.post('/auth/creator/register',createNewCreator);

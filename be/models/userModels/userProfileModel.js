@@ -2,9 +2,10 @@ const mongoose=require('mongoose')
 
 const ProfileSettingsSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  bio:{type:String},
-  mobileNumber:{type:String},
-  profileAvatar:{type:String},
+  displayName:{type:String,default:"Not Available"},
+  bio:{type:String,default:"Not Available"},
+  phoneNumber:{type:String,default:"Not Available"},
+  profileAvatar:{type:String,default:"Not Available"},
   theme: { type: String, default: 'light' }, // e.g., 'light' or 'dark'
   notifications: {
     email: { type: Boolean, default: true },
