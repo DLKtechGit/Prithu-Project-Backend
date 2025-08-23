@@ -5,6 +5,8 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { generateReferralCode } = require('../../middlewares/generateReferralCode');
 const otpStore=new Map();
+let  tempOtp;
+let otpExpires;
 
 // Create nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -34,7 +36,7 @@ exports.createNewUser = async (req, res) => {
       referralCodeGenerated = generateReferralCode(username);
     }
 
-
+ let referredByUserId= null;
     // RefferalCode Validation
 if (referralCode) {
   // Find user with this referral code who is still valid for referral usage
@@ -58,29 +60,9 @@ if (referralCode) {
   await referringUser.save();
 
   // Proceed with your referral reward logic
-  referredPeople = referringUser._id;
+  referredByUserId  = referringUser._id;
 }
 
-    let referredByUserId= null;
-
-    const refferdLimit=await User.findOneAndUpdate(
-       referralCode,{$inc:{referralcount:{$lt:2}}})
-
-    if (refferdLimit) {
-      const referringUser = await User.findOne({ referralCode: referralCode });
-
-      //Incresed and Check Limt Referal Count 
-       
-       
-      referringUser.referralcount = (referringUser.referralcount || 0) + 1;
-      await referringUser.save();
-      
-      if (!referringUser) {
-        return res.status(400).json({ error: 'Invalid referral code' });
-      }
-
-      referredByUserId = referringUser._id;
-    }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
@@ -152,31 +134,40 @@ exports.userLogin = async (req, res) => {
 };
 
 // Request Password Reset OTP
-exports.userPasswordResetsendOtp = async (req, res) => {
+exports.userSendOtp = async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: 'Email not found' });
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Generate 6-digit OTP and expiry (15 minutes)
-    const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(email, { tempOtp, expires: Date.now() + 5 * 60 * 1000 }); 
-    const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    let tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let otpExpires;
 
-    // Save OTP and expiry on user document
-    user.otpCode = tempOtp;
-    user.otpExpiresAt = otpExpires;
-    await user.save();
+    const user = await User.findOne({ email });
+
+    if (user) {
+      otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      // Save OTP and expiry on user document
+      user.otpCode = tempOtp;
+      user.otpExpiresAt = otpExpires;
+      await user.save();
+    } else {
+      otpExpires = Date.now() + 5 * 60 * 1000;
+      // Store OTP and expiration for this email in otpStore
+      otpStore.set(email, { tempOtp, expires: otpExpires });
+    }
 
     // Send OTP email
     const mailOptions = {
       from: process.env.MAIL_USER,
-      to: user.email,
+      to: email,
       subject: 'Prithu Password Reset OTP',
       text: `Your OTP for password reset is: ${tempOtp}. It is valid for 15 minutes.`,
     };
+
+    console.log(tempOtp)
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
@@ -193,9 +184,9 @@ exports.userPasswordResetsendOtp = async (req, res) => {
 };
 
 
+
 // Verify OTP
 exports.newUserVerifyOtp = async (req, res) => {
-
   const { email, otp } = req.body;
 
   if (!email || !otp) {
@@ -203,8 +194,6 @@ exports.newUserVerifyOtp = async (req, res) => {
   }
 
   const record = otpStore.get(email);
-
-  
 
   if (!record) {
     return res.status(400).json({ error: 'No OTP found for this email' });
@@ -217,16 +206,15 @@ exports.newUserVerifyOtp = async (req, res) => {
 
   if (record.tempOtp === otp) {
     otpStore.delete(email);
-
-    // Successful OTP verification for new user (ready for registration)
     return res.status(200).json({
       verified: true,
-      message: 'OTP verified successfully. You can now register.'
+      message: 'OTP verified successfully. You can now register.',
     });
   } else {
     return res.status(400).json({ error: 'Invalid OTP' });
   }
 };
+
 
 exports.exitUserVerifyOtp = async (req, res) => {
   try {
@@ -243,6 +231,8 @@ exports.exitUserVerifyOtp = async (req, res) => {
     }
 
     res.json({ message: 'OTP verified successfully' });
+    tempOtp='';
+    otpExpires='';
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -252,6 +242,11 @@ exports.exitUserVerifyOtp = async (req, res) => {
 exports.resetPasswordWithOtp = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ error: 'Invalid email or OTP' });
@@ -261,6 +256,7 @@ exports.resetPasswordWithOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
+    // Hash new password securely
     const passwordHash = await bcrypt.hash(newPassword, 10);
     user.passwordHash = passwordHash;
 
@@ -275,3 +271,4 @@ exports.resetPasswordWithOtp = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+

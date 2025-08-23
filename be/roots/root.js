@@ -9,7 +9,7 @@ const adminOnly=require('../middlewares/adminOnly')
 
 const {createNewUser,
     userLogin,
-    userPasswordResetsendOtp,
+    userSendOtp,
     resetPasswordWithOtp,
     exitUserVerifyOtp, 
     newUserVerifyOtp,
@@ -95,7 +95,7 @@ app.use('/uploads', (req, res, next) => {
 // User Authentication Endpoints
 router.post('/auth/user/register',createNewUser);
 router.post('/auth/user/login',userLogin);
-router.post('/auth/user/otp-send',userPasswordResetsendOtp);
+router.post('/auth/user/otp-send',userSendOtp);
 router.post('/auth/exist/user/verify-otp',exitUserVerifyOtp,);
 router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',resetPasswordWithOtp) ;
