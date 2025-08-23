@@ -112,7 +112,7 @@ exports.businessSendOtp = async (req, res) => {
       const user = await Business.findOne({ email });
   
       if (user) {
-        otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+        otpExpires = new Date(Date.now() + 5 * 60 * 1000);
         // Save OTP and expiry on user document
         user.otpCode = tempOtp;
         user.otpExpiresAt = otpExpires;
@@ -152,16 +152,10 @@ exports.businessSendOtp = async (req, res) => {
 
 
 exports.newBusinessVerifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+   const { otp } = req.body;
 
-  if (!email || !otp) {
+  if (!otp) {
     return res.status(400).json({ error: 'Email and OTP are required' });
-  }
-
-  const record = otpStore.get(email);
-
-  if (!record) {
-    return res.status(400).json({ error: 'No OTP found for this email' });
   }
 
   if (Date.now() > record.expires) {
@@ -171,24 +165,21 @@ exports.newBusinessVerifyOtp = async (req, res) => {
 
   if (record.tempOtp === otp) {
     otpStore.delete(email);
-
-    // Successful OTP verification for new user (ready for registration)
     return res.status(200).json({
       verified: true,
-      message: 'OTP verified successfully. You can now register.'
+      message: 'OTP verified successfully. You can now register.',
     });
   } else {
     return res.status(400).json({ error: 'Invalid OTP' });
   }
 };
 
-
 exports.existBusinessVerifyOtp= async (req, res) => {
   try {
     
-    const { email, otp } = req.body;
+    const {  otp } = req.body;
    
-    const business = await Business.findOne({ businessEmail:email });
+    const business = await Business.findOne({ otpCode:otp });
     if (!business) {
       return res.status(400).json({ error: 'Invalid email or OTP' });
     }
@@ -197,7 +188,7 @@ exports.existBusinessVerifyOtp= async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
-    res.json({ message: 'OTP verified successfully' });
+    res.json({ message: 'OTP verified successfully',email:business.businessEmail });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -206,14 +197,10 @@ exports.existBusinessVerifyOtp= async (req, res) => {
 // Reset Password with OTP
 exports.businessPasswordReset = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email,newPassword } = req.body;
     const business = await Business.findOne({ businessEmail:email });
     if (!business) {
       return res.status(400).json({ error: 'Invalid email or OTP' });
-    }
-
-    if (!business.otpCode || !business.otpExpiresAt || business.otpCode !== otp || business.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

@@ -154,7 +154,7 @@ try {
   
   if (user) {
     // OTP valid for 15 minutes for existing users
-    otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    otpExpires = new Date(Date.now() + 5 * 60 * 1000);
     user.otpCode = tempOtp;
     user.otpExpiresAt = otpExpires;
     await user.save();

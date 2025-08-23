@@ -54,7 +54,7 @@ const{
 }=require('../controllers/authenticationControllers/adminAuthController')
 
 const{
-  getUserdetailWithID,
+  getUserdetailWithId,
   getAllUserDetails,
 }=require('../controllers/userControllers/userDetailController')
 
@@ -144,6 +144,7 @@ router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeed
 
 //Admin User API EndPoints
 router.get('/admin/getall/users',getAllUserDetails);
+router.get('/admin/get/user/:id',getUserdetailWithId);
 // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 

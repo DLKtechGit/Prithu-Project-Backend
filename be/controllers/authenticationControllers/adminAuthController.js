@@ -105,13 +105,13 @@ exports.adminSendOtp = async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    let tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let tempOtp = Math.floor(1000 + Math.random() * 9000).toString();
     let otpExpires;
 
     const user = await Admin.findOne({ email });
 
     if (user) {
-      otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       // Save OTP and expiry on user document
       user.otpCode = tempOtp;
       user.otpExpiresAt = otpExpires;
@@ -148,16 +148,10 @@ exports.adminSendOtp = async (req, res) => {
 
 
 exports.newAdminVerifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+    const { otp } = req.body;
 
-  if (!email || !otp) {
+  if (!otp) {
     return res.status(400).json({ error: 'Email and OTP are required' });
-  }
-
-  const record = otpStore.get(email);
-
-  if (!record) {
-    return res.status(400).json({ error: 'No OTP found for this email' });
   }
 
   if (Date.now() > record.expires) {
@@ -167,25 +161,22 @@ exports.newAdminVerifyOtp = async (req, res) => {
 
   if (record.tempOtp === otp) {
     otpStore.delete(email);
-
-    // Successful OTP verification for new user (ready for registration)
     return res.status(200).json({
       verified: true,
-      message: 'OTP verified successfully. You can now register.'
+      message: 'OTP verified successfully. You can now register.',
     });
   } else {
     return res.status(400).json({ error: 'Invalid OTP' });
   }
 };
 
-
 // Verify OTP
 exports.existAdminVerifyOtp = async (req, res) => {
   try {
     
-    const { email, otp } = req.body;
+    const {  otp } = req.body;
    
-    const admin = await Admin.findOne({ email:email });
+    const admin = await Admin.findOne({ otpCode:otp });
     if (!admin) {
       return res.status(400).json({ error: 'Invalid email or OTP' });
     }
@@ -194,7 +185,7 @@ exports.existAdminVerifyOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
-    res.json({ message: 'OTP verified successfully' });
+    res.json({ message: 'OTP verified successfully',email:admin.email });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

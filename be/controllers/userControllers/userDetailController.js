@@ -1,7 +1,7 @@
 const { param } = require("../../roots/root")
 const Users = require("../../models/userModels/userModel")
 
-exports.getUserdetailWithID = async (req, res) => {
+exports.getUserdetailWithId = async (req, res) => {
   try {
     const userId = req.params.id; 
     const user = await Users.findById(userId); 

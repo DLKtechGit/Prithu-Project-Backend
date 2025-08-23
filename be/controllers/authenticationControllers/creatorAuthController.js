@@ -111,7 +111,7 @@ exports.creatorSendOtp = async (req, res) => {
     const user = await Creator.findOne({ email });
 
     if (user) {
-      otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       // Save OTP and expiry on user document
       user.otpCode = tempOtp;
       user.otpExpiresAt = otpExpires;
@@ -151,35 +151,35 @@ exports.creatorSendOtp = async (req, res) => {
 // Verify OTP
 exports.existCreatorVerifyOtp = async (req, res) => {
   try {
-    
-    const { email, otp } = req.body;
-   
-    const creator = await Creator.findOne({ creatorEmail:email });
-    if (!creator) {
-      return res.status(400).json({ error: 'Invalid email or OTP' });
+  
+      const { otp } = req.body;
+      
+      const creator = await Creator.findOne({ otpCode:otp });
+  
+     
+      if (!creator) {
+        return res.status(400).json({ error: 'Invalid email or OTP' });
+      }
+  
+      if (!creator.otpCode || !creator.otpExpiresAt || creator.otpCode !== otp || creator.otpExpiresAt < new Date()) {
+        return res.status(400).json({ error: 'Invalid or expired OTP' });
+      }
+  
+      res.json({ message: 'OTP verified successfully',
+        email:creator.creatorEmail });
+  
+      tempOtp='';
+      otpExpires='';
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-
-    if (!creator.otpCode || !creator.otpExpiresAt || creator.otpCode !== otp || creator.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
-    }
-
-    res.json({ message: 'OTP verified successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+  };
 
 exports.newCreatorVerifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+    const { otp } = req.body;
 
-  if (!email || !otp) {
+  if (!otp) {
     return res.status(400).json({ error: 'Email and OTP are required' });
-  }
-
-  const record = otpStore.get(email);
-
-  if (!record) {
-    return res.status(400).json({ error: 'No OTP found for this email' });
   }
 
   if (Date.now() > record.expires) {
@@ -189,16 +189,15 @@ exports.newCreatorVerifyOtp = async (req, res) => {
 
   if (record.tempOtp === otp) {
     otpStore.delete(email);
-
-    // Successful OTP verification for new user (ready for registration)
     return res.status(200).json({
       verified: true,
-      message: 'OTP verified successfully. You can now register.'
+      message: 'OTP verified successfully. You can now register.',
     });
   } else {
     return res.status(400).json({ error: 'Invalid OTP' });
   }
 };
+
 
 // Reset Password with OTP
 exports.creatorPasswordReset = async (req, res) => {
