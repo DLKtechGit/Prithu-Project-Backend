@@ -108,14 +108,14 @@ exports.creatorSendOtp = async (req, res) => {
     let tempOtp = Math.floor(1000 + Math.random() * 9000).toString();
     let otpExpires;
 
-    const user = await Creator.findOne({ email });
+    const creator = await Creator.findOne({ creatorEmail:email });
 
-    if (user) {
+    if (creator) {
       otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       // Save OTP and expiry on user document
       user.otpCode = tempOtp;
       user.otpExpiresAt = otpExpires;
-      await user.save();
+      await creator.save();
     } else {
       otpExpires = Date.now() + 5 * 60 * 1000;
       // Store OTP and expiration for this email in otpStore

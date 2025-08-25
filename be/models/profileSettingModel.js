@@ -13,12 +13,12 @@ const ProfileSettingsSchema = new mongoose.Schema(
       required: true,
       enum: ['User', 'Business', 'Creator', 'Admin'], // exact model names referenced
     },
-    dateOfBirth: { type: Date, default: null },         // corrected casing and default null
-    maritalStatus: { type: Boolean, default: null },     // boolean default should be null or false
-    displayName: { type: String, default: 'Not Available' },
-    bio: { type: String, default: 'Not Available' },
-    phoneNumber: { type: String, default: 'Not Available' },
-    profileAvatar: { type: String, default: 'Not Available' },
+    dateOfBirth: { type: Date,},         // corrected casing and default null
+    maritalStatus: { type: String },     // boolean default should be null or false
+    displayName: { type: String,},
+    bio: { type: String,},
+    phoneNumber: { type: String,},
+    profileAvatar: { type: String, },
     role: {
       type: String,
       enum: ['creator', 'business', 'consumer', 'admin'],

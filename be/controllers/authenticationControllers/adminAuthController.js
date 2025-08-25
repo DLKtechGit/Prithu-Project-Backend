@@ -108,9 +108,9 @@ exports.adminSendOtp = async (req, res) => {
     let tempOtp = Math.floor(1000 + Math.random() * 9000).toString();
     let otpExpires;
 
-    const user = await Admin.findOne({ email });
+    const admin = await Admin.findOne({ businessEmail:email });
 
-    if (user) {
+    if (admin) {
       otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       // Save OTP and expiry on user document
       user.otpCode = tempOtp;

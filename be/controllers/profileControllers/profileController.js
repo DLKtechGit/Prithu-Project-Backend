@@ -32,7 +32,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
 
     if (req.body.phoneNumber !== undefined) updateData.phoneNumber = req.body.phoneNumber;
     if (req.body.bio !== undefined) updateData.bio = req.body.bio;
-    if (req.body.dateOfBirth !== undefined) updateData.bio = req.body.dateOfBirth;
+    if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = req.body.dateOfBirth;
     if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
     if (req.body.displayName !== undefined) updateData.displayName = req.body.displayName;
     if (req.file?.path !== undefined) updateData.profileAvatar = req.file.path;
