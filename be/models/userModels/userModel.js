@@ -35,7 +35,7 @@ const UserSchema = new mongoose.Schema({
 
 
   // Profile
-  profileSettings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserProfiles' }],
+  profileSettings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProfilesSettings' }],
 
   // Role and following system
   role: { type: String, enum: ['admin', 'creator', 'user', 'business'], default: 'user' },

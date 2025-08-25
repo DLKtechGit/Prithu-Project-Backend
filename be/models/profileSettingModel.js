@@ -5,22 +5,26 @@ const ProfileSettingsSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      refPath: 'roleRef',        // dynamic reference field
+      refPath: 'roleRef', // dynamic reference field
       index: true,
     },
     roleRef: {
       type: String,
       required: true,
-      enum: ['User', 'Business', 'Creator', 'Admin'],  // the exact model names you will reference
+      enum: ['User', 'Business', 'Creator', 'Admin'], // exact model names referenced
     },
-    dateOfBitrh:{type:Date,default:"Not Available"},
-    maritalStatus:{type:Boolean,default:"Not Available"},
-    displayName: { type: String, default: "Not Available" },
-    bio: { type: String, default: "Not Available" },
-    phoneNumber: { type: String, default: "Not Available" },
-    profileAvatar: { type: String, default: "Not Available" },
-    role: { type: String, enum: ["creator", "business", "consumer", "admin"], required: true }, 
-    theme: { type: String, default: 'light' },        // e.g. 'light' or 'dark'
+    dateOfBirth: { type: Date, default: null },         // corrected casing and default null
+    maritalStatus: { type: Boolean, default: null },     // boolean default should be null or false
+    displayName: { type: String, default: 'Not Available' },
+    bio: { type: String, default: 'Not Available' },
+    phoneNumber: { type: String, default: 'Not Available' },
+    profileAvatar: { type: String, default: 'Not Available' },
+    role: {
+      type: String,
+      enum: ['creator', 'business', 'consumer', 'admin'],
+      required: true,
+    },
+    theme: { type: String, default: 'light' },           // 'light' or 'dark'
     notifications: {
       email: { type: Boolean, default: true },
       sms: { type: Boolean, default: false },
@@ -29,12 +33,12 @@ const ProfileSettingsSchema = new mongoose.Schema(
       showEmail: { type: Boolean, default: false },
       showProfilePicture: { type: Boolean, default: true },
     },
-    language: { type: String, default: 'en' },         // default language
+    language: { type: String, default: 'en' },            // default language code
     timezone: { type: String, default: 'Asia/Kolkata' }, // default timezone
-    details: { type: mongoose.Schema.Types.Mixed },    // flexible role-specific details
+    details: { type: mongoose.Schema.Types.Mixed },      // flexible role-specific details
   },
   {
-    timestamps: true,    
+    timestamps: true,
   }
 );
 

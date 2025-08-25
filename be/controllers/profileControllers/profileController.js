@@ -1,5 +1,6 @@
 const { body, validationResult } = require('express-validator');
 const Profile = require('../../models/profileSettingModel');
+const User=require('../../models/userModels/userModel')
 
 // Validation middleware array
 exports.validateUserProfileUpdate = [
@@ -48,11 +49,17 @@ exports.userProfileDetailUpdate = async (req, res) => {
       return res.status(400).json({ message: 'No fields provided for update' });
     }
 
-    const updatedOrCreatedProfile = await UserProfile.findOneAndUpdate(
+    const updatedOrCreatedProfile = await Profile.findOneAndUpdate(
       { userId },
       { $set: updateData },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).populate('userId');  // Populate dynamically based on roleRef
+ 
+    if(req.body.role==="user")
+    {
+    await User.findByIdAndUpdate
+  (userId,{$set:{profileSettings:updatedOrCreatedProfile._id}})
+    }
 
     return res.status(200).json({
       message: 'User profile setting updated or created successfully',
