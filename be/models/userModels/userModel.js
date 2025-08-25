@@ -86,3 +86,44 @@ const usersSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', usersSchema,'User');
+
+
+
+// // models/User.js
+// import mongoose from "mongoose";
+// const UserSchema = new mongoose.Schema({
+//   username: { type: String, unique: true },
+//   password: String,
+//   role: { type: String, enum: ["user", "admin"], default: "user" },
+//   activeSession: { type: String, default: null }, // single-device
+//   isOnline: { type: Boolean, default: false },
+//   lastSeen: { type: Date, default: null },
+//   fcmTokens: [String],
+// });
+// export default mongoose.model("User", UserSchema);
+
+
+
+// // models/User.js
+// import mongoose from "mongoose";
+
+// const UserSchema = new mongoose.Schema({
+//   username: String,
+//   email: String,
+//   password: String,
+//   role: { type: String, default: "user" },
+
+//   fcmTokens: { type: [String], default: [] },
+
+//   // Optional: users that this user follows (for creator follow system)
+//   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Creator" }],
+
+//   // Optional: users who follow this user (if user can be a creator)
+//   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+// });
+
+
+
+
+// export default mongoose.model("User", UserSchema);
+

@@ -4,6 +4,8 @@ const cors = require('cors');
 const app = express();
 const root =require ('./roots/root');
 require('dotenv').config();
+const http=require('http');
+const server = http.createServer(app);
 
 
 // Middleware

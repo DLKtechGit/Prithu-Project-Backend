@@ -65,7 +65,7 @@ const{
 
 const{
   userProfileDetailUpdate,
-}=require('../controllers/userControllers/userProfileController')
+}=require('../controllers/profileControllers/profileController')
 
 
 
