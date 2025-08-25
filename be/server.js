@@ -5,13 +5,22 @@ const app = express();
 const root =require ('./roots/root');
 require('dotenv').config();
 const http=require('http');
-const server = http.createServer(app);
+const Server = http.createServer(app);
+const {initSocket}=require('./middlewares/webSocket');
+const cookieParser=require('cookie-parser')
 
 
 // Middleware
-app.use(cors());
 app.use(express.json());
-app.use('/api',root)
+app.use('/api',root);
+app.use(cookieParser());
+app.use(cors({
+  origin: process.env.CLIENT_URL?.split(",") || ["http://localhost:3000"],
+  credentials: true,
+}));
+
+
+initSocket(Server);
 
 // Mongodb Server and Port ServerConnectiion
 mongoose.connect(process.env.MONGODB_URI, {

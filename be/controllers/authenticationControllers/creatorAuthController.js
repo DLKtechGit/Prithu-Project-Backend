@@ -105,7 +105,7 @@ exports.creatorSendOtp = async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    let tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let tempOtp = Math.floor(1000 + Math.random() * 9000).toString();
     let otpExpires;
 
     const user = await Creator.findOne({ email });

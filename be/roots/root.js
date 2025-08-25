@@ -104,8 +104,7 @@ router.post('/auth/exist/user/verify-otp',existUserVerifyOtp,);
 router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
 
-//Get Users detail with id
- router.post('/user/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
+
 
 //Creator Authentication API EndPoints 
 router.post('/auth/creator/register',createNewCreator);
@@ -161,7 +160,8 @@ router.get('/all/tags/:id',getTagsWithId)
 
 
 
-
+//Profile Setting detail with id
+ router.post('/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
 
 
 
