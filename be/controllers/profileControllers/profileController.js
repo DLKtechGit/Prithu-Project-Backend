@@ -1,10 +1,11 @@
 const { body, validationResult } = require('express-validator');
-const UserProfile = require('../../models/profileSettingModel');
+const Profile = require('../../models/profileSettingModel');
 
 // Validation middleware array
 exports.validateUserProfileUpdate = [
   body('phoneNumber').optional().isMobilePhone().withMessage('Invalid phone number'),
   body('bio').optional().isString(),
+  body('maritalStatus').optional().isString(),
   body('displayName').optional().isString(),
   body('role').optional().isIn(['creator', 'business', 'consumer', 'admin']),
   body('roleRef').optional().isIn(['User', 'Business', 'Creator', 'Admin']),
@@ -30,6 +31,8 @@ exports.userProfileDetailUpdate = async (req, res) => {
 
     if (req.body.phoneNumber !== undefined) updateData.phoneNumber = req.body.phoneNumber;
     if (req.body.bio !== undefined) updateData.bio = req.body.bio;
+    if (req.body.dateOfBirth !== undefined) updateData.bio = req.body.dateOfBirth;
+    if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
     if (req.body.displayName !== undefined) updateData.displayName = req.body.displayName;
     if (req.file?.path !== undefined) updateData.profileAvatar = req.file.path;
     if (req.body.role !== undefined) updateData.role = req.body.role;
@@ -58,5 +61,25 @@ exports.userProfileDetailUpdate = async (req, res) => {
   } catch (error) {
     console.error('Error in userProfileDetailUpdate:', error);
     return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+
+exports.profileDetailWithId = async (req, res) => {
+
+
+  try {
+    const profile = await Profile.findOne({userId:req.params.id});
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    res.status(200).json({
+      profileSetting: profile,
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

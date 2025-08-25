@@ -13,7 +13,8 @@ const ProfileSettingsSchema = new mongoose.Schema(
       required: true,
       enum: ['User', 'Business', 'Creator', 'Admin'],  // the exact model names you will reference
     },
-
+    dateOfBitrh:{type:Date,default:"Not Available"},
+    maritalStatus:{type:Boolean,default:"Not Available"},
     displayName: { type: String, default: "Not Available" },
     bio: { type: String, default: "Not Available" },
     phoneNumber: { type: String, default: "Not Available" },

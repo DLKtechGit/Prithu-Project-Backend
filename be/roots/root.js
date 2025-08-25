@@ -65,6 +65,7 @@ const{
 
 const{
   userProfileDetailUpdate,
+  profileDetailWithId,
 }=require('../controllers/profileControllers/profileController')
 
 
@@ -162,6 +163,7 @@ router.get('/all/tags/:id',getTagsWithId)
 
 //Profile Setting detail with id
  router.post('/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
+ router.get('/get/profile/detail/:id',profileDetailWithId)
 
 
 
