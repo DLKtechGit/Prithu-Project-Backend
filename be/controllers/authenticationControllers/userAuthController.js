@@ -159,7 +159,9 @@ try {
     user.otpExpiresAt = otpExpires;
     await user.save();
   } else {
-    // For non-registered users, store in temporary OTP store with 5 minutes expiration
+    // For non-registered
+    //  users, store in temporary OTP store with 5 minutes expiration
+    console.log('non-register user')
     otpExpires = Date.now() + 5 * 60 * 1000;
     otpStore.set(email, { tempOtp, expires: otpExpires });
   }
@@ -192,11 +194,12 @@ try {
 
 // Verify OTP
 exports.newUserVerifyOtp = async (req, res) => {
-  const { otp } = req.body;
+  const { otp ,email} = req.body;
 
-  if (!otp) {
+  if (!otp||!email) {
     return res.status(400).json({ error: 'Email and OTP are required' });
   }
+   const record = otpStore.get(email);
 
   if (Date.now() > record.expires) {
     otpStore.delete(email);

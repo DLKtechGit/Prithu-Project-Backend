@@ -43,6 +43,16 @@ const creatorsSchema = new mongoose.Schema({
     followedAt: { type: Date, default: Date.now }
   }],
 
+  //Term and Condition 
+  termsAccepted: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
+  termsAcceptedAt: {
+    type: Date,
+  },
+
   // Account Status
   isVerified: { type: Boolean, default: false },
   isActive:   { type: Boolean, default: true }

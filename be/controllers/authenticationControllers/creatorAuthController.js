@@ -176,9 +176,9 @@ exports.existCreatorVerifyOtp = async (req, res) => {
   };
 
 exports.newCreatorVerifyOtp = async (req, res) => {
-    const { otp } = req.body;
+    const { otp,email } = req.body;
 
-  if (!otp) {
+  if (!otp||!email) {
     return res.status(400).json({ error: 'Email and OTP are required' });
   }
 

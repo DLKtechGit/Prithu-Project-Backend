@@ -58,6 +58,16 @@ const businessUserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+
+  //Term and Condition 
+  termsAccepted: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
+  termsAcceptedAt: {
+    type: Date,
+  },
   
   // Timestamps
   createdAt: {

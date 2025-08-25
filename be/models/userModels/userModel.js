@@ -71,7 +71,17 @@ const usersSchema = new mongoose.Schema({
 
   viewedFeeds:[{type:mongoose.Schema.Types.ObjectId,ref:'Feeds'}],
 
-  totalFeedsWatchDuration:{type:Number,default:0}
+  totalFeedsWatchDuration:{type:Number,default:0},
+  
+//Term and Condition 
+  termsAccepted: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
+  termsAcceptedAt: {
+    type: Date,
+  },
 
 }, { timestamps: true });
 

@@ -94,6 +94,8 @@ adminSchema.virtual('isLocked').get(function() {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
+
+
 // Index for performance
 adminSchema.index({ adminType: 1 });
 adminSchema.index({ isActive: 1 });
