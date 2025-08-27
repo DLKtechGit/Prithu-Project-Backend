@@ -32,6 +32,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
 
     if (req.body.phoneNumber !== undefined) updateData.phoneNumber = req.body.phoneNumber;
     if (req.body.bio !== undefined) updateData.bio = req.body.bio;
+    if (req.body.userName!== undefined) updateData.userName = req.body.Name;
     if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = req.body.dateOfBirth;
     if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
     if (req.body.displayName !== undefined) updateData.displayName = req.body.displayName;
@@ -55,10 +56,10 @@ exports.userProfileDetailUpdate = async (req, res) => {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).populate('userId');  // Populate dynamically based on roleRef
  
-    if(req.body.role==="user")
+    if(req.body.role==="User"&&updatedOrCreatedProfile.userName)
     {
     await User.findByIdAndUpdate
-  (userId,{$set:{profileSettings:updatedOrCreatedProfile._id}})
+  (userId,{$set:{profileSettings:updatedOrCreatedProfile._id,username:updatedOrCreatedProfile.userName}})
     }
 
     return res.status(200).json({
@@ -73,20 +74,22 @@ exports.userProfileDetailUpdate = async (req, res) => {
 
 
 exports.profileDetailWithId = async (req, res) => {
+  try {
+    // Populate userId and only bring the username
+    const profile = await Profile.findOne({ userId: req.params.id })
+      .populate({ path: 'userId', select: 'username' });
 
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });  
+    }
 
-  try {
-    const profile = await Profile.findOne({userId:req.params.id});
-
-    if (!profile) {
-      return res.status(404).json({ message: 'Profile not found' });
-    }
-
-    res.status(200).json({
-      profileSetting: profile,
-    });
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
+    res.status(200).json({
+      profileSetting: profile,
+      userName: profile.userId.username   // Extract username from the populated userId
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Internal server error' });  
+  }
 };
+

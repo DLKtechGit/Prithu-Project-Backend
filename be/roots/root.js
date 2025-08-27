@@ -13,6 +13,7 @@ const {createNewUser,
     userPasswordReset,
     existUserVerifyOtp, 
     newUserVerifyOtp,
+    userlogOut,
 }=require('../controllers/authenticationControllers/userAuthController')
 
 const {createNewCreator,
@@ -68,6 +69,12 @@ const{
   profileDetailWithId,
 }=require('../controllers/profileControllers/profileController')
 
+const{
+  getUserStatus,
+}=require('../controllers/adminControllers/adminUserControllers')
+
+
+
 
 
 
@@ -104,6 +111,7 @@ router.post('/auth/user/otp-send',userSendOtp);
 router.post('/auth/exist/user/verify-otp',existUserVerifyOtp,);
 router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
+router.post("/auth/user/logout",userlogOut);
 
 
 
@@ -145,6 +153,7 @@ router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeed
 //Admin User API EndPoints
 router.get('/admin/getall/users',getAllUserDetails);
 router.get('/admin/get/user/:id',getUserdetailWithId);
+router.get("/admin/users/status",getUserStatus);
 // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 

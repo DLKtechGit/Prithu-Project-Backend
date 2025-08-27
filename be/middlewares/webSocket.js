@@ -1,9 +1,13 @@
-const {Server} = require("socket.io");
+const { Server } = require("socket.io");
 const User = require("../models/userModels/userModel");
+const { createRedisAdapter } = require("../radisClient/radisClient");
+const {makePresenceService} = require("../services/presenseService");
 
 let io;
+let presenceService;
+let redisAppClient;
 
-exports.initSocket = (httpServer) => {
+exports.initSocket = async (httpServer) => {
   io = new Server(httpServer, {
     cors: {
       origin: process.env.CORS_ORIGIN?.split(",") || ["http://localhost:3000"],
@@ -11,7 +15,14 @@ exports.initSocket = (httpServer) => {
     },
   });
 
-  // Middleware for authenticating sockets using sessionId from handshake auth
+  // Init Redis adapter + app client INSIDE initSocket
+  const { appClient } = await createRedisAdapter(io);
+  redisAppClient = appClient;
+
+  // Presence service
+  presenceService = makePresenceService(redisAppClient, User, io);
+
+  // Middleware for authenticating sockets using sessionId
   io.use(async (socket, next) => {
     try {
       const sessionId = socket.handshake.auth?.sessionId;
@@ -22,8 +33,12 @@ exports.initSocket = (httpServer) => {
       if (!user) {
         return next(new Error("Invalid session"));
       }
+
       socket.userId = user._id.toString();
-      socket.join(`user:${socket.userId}`); // Join personal room
+      socket.role = user.role;
+
+      // Join user personal room
+      socket.join(`user:${socket.userId}`);
       next();
     } catch (error) {
       console.error("Socket auth error:", error);
@@ -32,28 +47,39 @@ exports.initSocket = (httpServer) => {
   });
 
   io.on("connection", async (socket) => {
-    try {
-      await User.findByIdAndUpdate(socket.userId, { isOnline: true, lastSeen: new Date() });
-    } catch (error) {
-      console.error(`Error setting user (${socket.userId}) online:`, error);
-    }
+    const userId = socket.userId;
 
-    // Heartbeat event to keep user online status updated
+    // Extract device info from client handshake
+    const deviceInfo = {
+      deviceId: socket.handshake.auth.deviceId || socket.id,
+      deviceName: socket.handshake.auth.deviceName || "Unknown Device",
+      os: socket.handshake.auth.os || "Unknown OS",
+      browser: socket.handshake.auth.browser || "Unknown Browser",
+      ip: socket.handshake.address || "Unknown IP",
+    };
+
+    // Add socket to presence with device info
+    await presenceService.addSocket(userId, socket.id, deviceInfo).catch(console.error);
+
+    // If admin, join admins room
+    if (socket.role === "admin") socket.join("admins");
+
+    // Heartbeat to update lastSeen
     socket.on("heartbeat", async () => {
-      try {
-        await User.findByIdAndUpdate(socket.userId, { isOnline: true, lastSeen: new Date() });
-      } catch (error) {
-        console.error(`Error updating heartbeat for user (${socket.userId}):`, error);
-      }
+      await redisAppClient.set(`lastseen:${userId}`, Date.now().toString()).catch(() => {});
+      await User.findByIdAndUpdate(userId, { lastSeenAt: new Date() }).catch(() => {});
+      io.to("admins").emit("user:heartbeat", { userId, lastSeenAt: new Date() });
     });
 
-    // On user disconnect, mark as offline and update last seen
+    // Go offline manually
+    socket.on("go-offline", async () => {
+      await presenceService.removeSocket(userId, socket.id).catch(console.error);
+      socket.disconnect(true);
+    });
+
+    // Disconnect event
     socket.on("disconnect", async () => {
-      try {
-        await User.findByIdAndUpdate(socket.userId, { isOnline: false, lastSeen: new Date() });
-      } catch (error) {
-        console.error(`Error setting user (${socket.userId}) offline:`, error);
-      }
+      await presenceService.removeSocket(userId, socket.id).catch(console.error);
     });
   });
 };

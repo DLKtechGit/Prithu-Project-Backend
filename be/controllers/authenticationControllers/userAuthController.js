@@ -5,6 +5,10 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { generateReferralCode } = require('../../middlewares/generateReferralCode');
 const otpStore=new Map();
+const StoreUserDevice=require('../../models/devicetrackingModel');
+const makeSessionService = require("../../services/sessionService");
+
+const sessionService = makeSessionService(User,StoreUserDevice);
 
 
 // Create nodemailer transporter
@@ -102,7 +106,7 @@ if (referralCode) {
 // User Login
 exports.userLogin = async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const { identifier, password, role, roleRef } = req.body;
 
     // Find user by username or email
     const user = await User.findOne({
@@ -117,17 +121,26 @@ exports.userLogin = async (req, res) => {
       return res.status(400).json({ error: 'Invalid username/email or password' });
     }
 
+    // Generate JWT token
     const userToken = jwt.sign(
       { userName: user.username, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '7d' }
     );
 
+    // Create session and get session id
+    const deviceId = await sessionService.createSession(user._id,role,roleRef, userToken, req );
+   
+  
+
+    // Send JSON response with token and user info
     res.json({
       token: userToken,
+      deviceId,
       user: {
         userId: user._id,
         userName: user.username,
+         email: user.email,
         role: user.role,
       },
     });
@@ -135,6 +148,7 @@ exports.userLogin = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Request Password Reset OTP
 exports.userSendOtp = async (req, res) => {
@@ -270,3 +284,12 @@ exports.userPasswordReset = async (req, res) => {
   }
 };
 
+
+exports.userlogOut= async (req, res) => {
+  req.user.activeSession = null;
+  req.user.isOnline = false;
+  req.user.lastSeen = new Date();
+  await req.user.save();
+  res.clearCookie("sessionId");
+  res.json({ message: "Logged out" });
+};

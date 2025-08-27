@@ -7,7 +7,7 @@ require('dotenv').config();
 const http=require('http');
 const Server = http.createServer(app);
 const {initSocket}=require('./middlewares/webSocket');
-const cookieParser=require('cookie-parser')
+const cookieParser=require('cookie-parser');
 
 
 // Middleware
@@ -18,6 +18,7 @@ app.use(cors({
   origin: process.env.CLIENT_URL?.split(",") || ["http://localhost:3000"],
   credentials: true,
 }));
+
 
 
 initSocket(Server);
