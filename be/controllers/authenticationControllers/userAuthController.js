@@ -26,7 +26,7 @@ exports.createNewUser = async (req, res) => {
     const { username, email, password, referralCode } = req.body;
     console.log({ username, email, password, referralCode })
     // Check if username or email already exists
-    if (await User.findOne({ username })) {
+    if (await User.findOne({ userName:username })) {
       return res.status(400).json({ error: 'Username already exists' });
     }
     if (await User.findOne({ email })) {
@@ -76,7 +76,7 @@ if (referralCode) {
 
     // Create new user
     const user = new User({
-      username,
+      userName:username,
       email,
       passwordHash,
       referralCode: referralCodeGenerated,
@@ -110,7 +110,7 @@ exports.userLogin = async (req, res) => {
 
     // Find user by username or email
     const user = await User.findOne({
-      $or: [{ username: identifier }, { email: identifier }],
+      $or: [{ userName: identifier }, { email: identifier }],
     });
     if (!user) {
       return res.status(400).json({ error: 'Invalid username/email or password' });
@@ -123,7 +123,7 @@ exports.userLogin = async (req, res) => {
 
     // Generate JWT token
     const userToken = jwt.sign(
-      { userName: user.username, role: user.role },
+      { userName: user.userName, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -139,7 +139,7 @@ exports.userLogin = async (req, res) => {
       deviceId,
       user: {
         userId: user._id,
-        userName: user.username,
+        userName: user.userName,
          email: user.email,
         role: user.role,
       },

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const creatorsSchema = new mongoose.Schema({
   // Basic Information
-  creatorUsername: { type: String, unique: true, required: true, minlength: 3, maxlength: 30, trim: true },
+  userName: { type: String, unique: true, required: true, minlength: 3, maxlength: 30, trim: true },
   creatorEmail: { type: String, unique: true, required: true, lowercase: true, trim: true },
   creatorPasswordHash: {
     type: String,
@@ -14,10 +14,9 @@ const creatorsSchema = new mongoose.Schema({
   otpExpiresAt: { type: Date },
 
   // Profile
-  profilePicture: { type: String, default: '' },
-  displayName:    { type: String, default: '' },
-  bio:            { type: String, default: '', maxlength: 500 },
-
+      profileSettings: [
+        { type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
+      ],
   // Role
   role: {
     type: String,
@@ -66,4 +65,5 @@ creatorsSchema.index({ isVerified: 1 });
 creatorsSchema.index({ isActive: 1 });
 
 // Export model
-module.exports = mongoose.model('Creators', creatorsSchema,'Creators');
+module.exports = mongoose.model('Creator', creatorsSchema, 'Creators');
+

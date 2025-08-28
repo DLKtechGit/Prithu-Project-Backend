@@ -22,7 +22,7 @@ exports.newAdmin = async (req, res) => {
 
     console.log({ username, email, password,})
     // Check if username or email already exists
-    if (await Admin.findOne({ username:username })) {
+    if (await Admin.findOne({ userName:username })) {
       return res.status(400).json({ error: 'Username already exists' });
     }
     if (await Admin.findOne({ email:email })) {
@@ -34,7 +34,7 @@ exports.newAdmin = async (req, res) => {
 
     // Create new admin
     const admin = new Admin({
-        username,
+        userName:username,
         email,
         passwordHash,
 
@@ -56,12 +56,12 @@ exports.adminLogin = async (req, res) => {
     const { identifier, password } = req.body;
   
 
-    // Find admin by username or email
+    // Find admin by userName or email
     const admin = await Admin.findOne({
-      $or: [{ username: identifier }, { email: identifier }],
+      $or: [{ userName: identifier }, { email: identifier }],
     });
-    if (!admin.username) {
-      return res.status(400).json({ error: 'Invalid username' });
+    if (!admin.userName) {
+      return res.status(400).json({ error: 'Invalid userName' });
     }
 
 
@@ -78,7 +78,7 @@ exports.adminLogin = async (req, res) => {
     }
 
     const userToken = jwt.sign(
-      { userId:admin._id ,userName: admin.username, role: admin.adminType },
+      { userId:admin._id ,userName: admin.userName, role: admin.adminType },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -87,7 +87,7 @@ exports.adminLogin = async (req, res) => {
       token: userToken,
       admin: {
         adminId: admin._id,
-        adminUserName: admin. username,
+        userName: admin. userName,
         role: admin.adminType,
       },
     });

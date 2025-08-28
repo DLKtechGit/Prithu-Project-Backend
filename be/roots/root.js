@@ -71,7 +71,16 @@ const{
 
 const{
   getUserStatus,
-}=require('../controllers/adminControllers/adminUserControllers')
+}=require('../controllers/adminControllers/adminUserControllers');
+
+const{
+  likeFeed,
+  saveFeed,
+  downloadFeed,
+  addComment,
+  getUserSavedFeeds,
+  getUserDownloadedFeeds,
+}=require('../controllers/feedControllers/userActionsFeedController');
 
 
 
@@ -113,6 +122,16 @@ router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
 router.post("/auth/user/logout",userlogOut);
 
+//User Feed Actions
+router.post('/user/feed/like',likeFeed);
+router.post('/user/feed/save',saveFeed);
+router.post('/user/feed/download',downloadFeed);
+router.post('/user/feed/comment',addComment);
+
+//User Feed Get Actions
+router.get('/user/saved/feeds/:id',getUserSavedFeeds);
+router.get('/user/saved/download/:id',getUserDownloadedFeeds);
+
 
 
 //Creator Authentication API EndPoints 
@@ -124,8 +143,8 @@ router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
 router.post('/auth/creator/reset-password',creatorPasswordReset);
 
 //Creator Feed API Endpoints
-router.post('/creator/feed',upload.single('file'),creatorFeedUpload);
-router.delete('/creator/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
+router.post("/creator/feed/:id",upload.single('file'),creatorFeedUpload);
+router.delete('/creator/delete/feed/:id',creatorFeedDelete);
 router.get('/creator/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
 
@@ -173,6 +192,9 @@ router.get('/all/tags/:id',getTagsWithId)
 //Profile Setting detail with id
  router.post('/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
  router.get('/get/profile/detail/:id',profileDetailWithId)
+
+
+
 
 
 

@@ -13,7 +13,7 @@ const DeviceSchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema(
   {
     // Basic info
-    username: {
+    userName: {
       type: String,
       required: true,
       unique: true,

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const businessUserSchema = new mongoose.Schema({
   // Basic bussiness Information
-  businessUsername: {
+  userName: {
     type: String,
     required: true,
     unique: true,

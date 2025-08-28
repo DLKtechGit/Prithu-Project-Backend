@@ -26,7 +26,7 @@ const feedsSchema = new mongoose.Schema({
   // Author reference
   createdBy: { // preserved original naming
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Creator',
   },
 
   // Timestamp of creation

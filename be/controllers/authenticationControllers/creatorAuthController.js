@@ -21,7 +21,7 @@ exports.createNewCreator = async (req, res) => {
     const { username, email, password,} = req.body;
 
     // Check if username or email already exists
-    if (await Creator.findOne({ creatorUsername:username })) {
+    if (await Creator.findOne({ userName:username })) {
       return res.status(400).json({ error: 'Username already exists' });
     }
     if (await Creator.findOne({ creatorEmail:email })) {
@@ -33,7 +33,7 @@ exports.createNewCreator = async (req, res) => {
 
     // Create new creator
     const creator = new Creator({
-        creatorUsername:username,
+        userName:username,
       creatorEmail:email,
         creatorPasswordHash:passwordHash,
 
@@ -57,10 +57,10 @@ exports.creatorLogin = async (req, res) => {
 
     // Find creator by username or email
     const creator = await Creator.findOne({
-      $or: [{ creatorUsername: identifier }, { creatorEmail: identifier }],
+      $or: [{ userName: identifier }, { creatorEmail: identifier }],
     });
-    if (!creator.creatorUsername) {
-      return res.status(400).json({ error: 'Invalid username' });
+    if (!creator.userName) {
+      return res.status(400).json({ error: 'Invalid userName' });
     }
 
 
@@ -77,7 +77,7 @@ exports.creatorLogin = async (req, res) => {
     }
 
     const userToken = jwt.sign(
-      { userId:creator._id ,userName: creator.creatorUsername, role: creator.role },
+      { userId:creator._id ,userName: creator.userName, role: creator.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -86,7 +86,7 @@ exports.creatorLogin = async (req, res) => {
       token: userToken,
       creator: {
         creatorId: creator._id,
-        creatorUserName: creator. creatorUsername,
+        userName: creator.userName,
         role: creator.role,
       },
     });

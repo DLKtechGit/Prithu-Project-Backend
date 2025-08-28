@@ -2,36 +2,43 @@ const Feed = require('../../models/feedModel');
 const User = require('../../models/userModels/userModel');
 const Creator = require('../../models/creatorModel');
 const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
+const Profile = require('../../models/profileSettingModel');
 
 exports.getAllFeeds = async (req, res) => {
   try {
-
-    const feeds = await Feed.find()
-      .sort({ createdAt: -1 })
-      .populate({ path: "createdBy", select: "creatorUsername creatorEmail" });
+    const feeds = await Feed.find().sort({ createdAt: -1 });
 
     if (!feeds || feeds.length === 0) {
       return res.status(404).json({ message: 'No feeds found' });
     }
 
-    const enrichedFeeds = feeds.map(feed => {
-      const feedObj = feed.toObject();
-      feedObj.timeAgo = feedTimeCalculator(new Date(feedObj.createdAt));
-      feedObj.creatorUsername = feedObj.createdBy?.creatorUsername || 'Unknown';
-      feedObj.creatorEmail = feedObj.createdBy?.creatorEmail || 'Unknown';
-      return feedObj;
-    });
+    const enrichedFeeds = await Promise.all(
+      feeds.map(async (feed) => {
+        const feedObj = feed.toObject();
 
+        // Fetch creator profile
+        const creatorProfile = await Profile.findOne({ userId: feed.createdBy });
+
+        feedObj.creatorUsername = creatorProfile?.creatorUsername || 'Unknown';
+        feedObj.profileAvatar = creatorProfile?.creatorEmail || 'Unknown';
+
+        // Add timeAgo
+        feedObj.timeAgo = feedTimeCalculator(new Date(feedObj.createdAt));
+
+        return feedObj;
+      })
+    );
 
     return res.status(200).json({
       message: 'Feeds retrieved successfully',
-      feeds: enrichedFeeds
+      feeds: enrichedFeeds,
     });
   } catch (error) {
     console.error('Error fetching feeds:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 
 

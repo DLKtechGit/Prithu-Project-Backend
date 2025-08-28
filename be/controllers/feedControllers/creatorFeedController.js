@@ -8,10 +8,12 @@ const Tags = require('../../models/tagModel');
 
 
 exports.creatorFeedUpload = async (req, res) => {
-  try {
-    const creatorId = req.userId;
-    const { language, category, type, tags } = req.body;
 
+  console.log('creator feed upload initiated')
+  try {
+    const creatorId = req.params.id;
+    const { language, category, type, tags } = req.body;
+ 
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -96,6 +98,7 @@ exports.creatorFeedDelete = async (req, res) => {
 
     // Find the feed 
     const feed = await Feed.findById(feedId);
+    
     if (!feed) {
       return res.status(404).json({ message: 'Feed not found' });
     }

@@ -1,12 +1,18 @@
 const { body, validationResult } = require('express-validator');
 const Profile = require('../../models/profileSettingModel');
-const User=require('../../models/userModels/userModel')
+const User=require('../../models/userModels/userModel');
+const Creator=require('../../models/creatorModel');
+const Admin = require('../../models/adminModel');
+const Business=require('../../models/businessModel');
 
 // Validation middleware array
 exports.validateUserProfileUpdate = [
   body('phoneNumber').optional().isMobilePhone().withMessage('Invalid phone number'),
   body('bio').optional().isString(),
   body('maritalStatus').optional().isString(),
+  body('dateOfBirth').optional().isISO8601().toDate(),
+  body('profileAvatar').optional().isString(),
+  body('userName').optional().isString(),
   body('displayName').optional().isString(),
   body('role').optional().isIn(['creator', 'business', 'consumer', 'admin']),
   body('roleRef').optional().isIn(['User', 'Business', 'Creator', 'Admin']),
@@ -20,19 +26,29 @@ exports.validateUserProfileUpdate = [
 
 // Controller function
 exports.userProfileDetailUpdate = async (req, res) => {
+    console.log(req.body);
+  const userId = req.params.id;
   // Validate inputs
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
   }
 
+  const roleModels = {
+  User,
+  Creator,
+  Admin,
+  Business,
+};
+
   try {
+  
     const userId = req.params.id;
     const updateData = {};
 
     if (req.body.phoneNumber !== undefined) updateData.phoneNumber = req.body.phoneNumber;
     if (req.body.bio !== undefined) updateData.bio = req.body.bio;
-    if (req.body.userName!== undefined) updateData.userName = req.body.Name;
+    if (req.body.userName!== undefined) updateData.userName = req.body.userName;
     if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = req.body.dateOfBirth;
     if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
     if (req.body.displayName !== undefined) updateData.displayName = req.body.displayName;
@@ -50,22 +66,38 @@ exports.userProfileDetailUpdate = async (req, res) => {
       return res.status(400).json({ message: 'No fields provided for update' });
     }
 
+    
+
     const updatedOrCreatedProfile = await Profile.findOneAndUpdate(
       { userId },
       { $set: updateData },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).populate('userId');  // Populate dynamically based on roleRef
- 
-    if(req.body.role==="User"&&updatedOrCreatedProfile.userName)
-    {
-    await User.findByIdAndUpdate
-  (userId,{$set:{profileSettings:updatedOrCreatedProfile._id,username:updatedOrCreatedProfile.userName}})
-    }
+  
+    console.log(updateData.userName)
+    
+if ((updateData.role || updateData.roleRef) || updateData.userName) {
+  const Model = roleModels[updateData.role || updateData.roleRef];
+  console.log(Model)
+  if (Model) {
+    await Model.findByIdAndUpdate(userId, {
+      $set: {
+        profileSettings: updatedOrCreatedProfile._id,
+        userName:updateData.userName,
+      },
+    });
 
     return res.status(200).json({
-      message: 'User profile setting updated or created successfully',
+      message: 'Profile setting updated or created successfully',
       profile: updatedOrCreatedProfile,
     });
+  } else {
+    return res.status(400).json({ message: 'Invalid role' });
+  }
+} else {
+  return res.status(400).json({ message: 'Missing role or username' });
+}
+
   } catch (error) {
     console.error('Error in userProfileDetailUpdate:', error);
     return res.status(500).json({ message: 'Internal Server Error' });

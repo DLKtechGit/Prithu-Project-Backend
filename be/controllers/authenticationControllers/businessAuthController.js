@@ -22,9 +22,9 @@ exports.createNewBusinessUser = async (req, res) => {
   try {
     const { username, email, password,} = req.body;
 
-    // Check if username or email already exists
-    if (await Business.findOne({ businessUsername:username })) {
-      return res.status(400).json({ error: 'Username already exists' });
+    // Check if userName or email already exists
+    if (await Business.findOne({ userName:username })) {
+      return res.status(400).json({ error: 'User Name already exists' });
     }
     if (await Business.findOne({ businessEmail:email })) {
       return res.status(400).json({ error: 'Email already registered' });
@@ -35,7 +35,7 @@ exports.createNewBusinessUser = async (req, res) => {
 
     // Create new business
     const business = new Business({
-        businessUsername:username,
+        userName:username,
       businessEmail:email,
         businessPasswordHash:passwordHash,
 
@@ -55,14 +55,13 @@ exports.createNewBusinessUser = async (req, res) => {
 exports.businessLogin = async (req, res) => {
   try {
     const { identifier, password } = req.body;
-  
 
-    // Find business by username or email
+    // Find business by userName or email
     const business = await Business.findOne({
-      $or: [{ businessUsername: identifier }, { businessEmail: identifier }],
+      $or: [{ userName: identifier }, { businessEmail: identifier }],
     });
-    if (!business.businessUsername) {
-      return res.status(400).json({ error: 'Invalid username' });
+    if (!business.userName) {
+      return res.status(400).json({ error: 'Invalid userName' });
     }
 
 
@@ -79,7 +78,7 @@ exports.businessLogin = async (req, res) => {
     }
 
     const userToken = jwt.sign(
-      { userName: business.businessUsername, role: business.role },
+      { userName: business.userName, role: business.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -88,7 +87,7 @@ exports.businessLogin = async (req, res) => {
       token: userToken,
       business: {
         businessId: business._id,
-        businessUserName: business. businessUsername,
+        userName: business.userName,
         role: business.role,
       },
     });

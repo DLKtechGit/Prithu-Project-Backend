@@ -21,6 +21,8 @@ const UserFeedActionInteractionSchema = new mongoose.Schema({
     index: true,
   },
 
+  lastDownloadedAt: { type: Date },
+
   // Extra fields for share & view
   watchDuration: { type: Number, default: 0 }, // used only for "view"
   shareChannel: {                               // used only for "share"
@@ -35,7 +37,7 @@ const UserFeedActionInteractionSchema = new mongoose.Schema({
 //  Prevent duplicate like/save/download per user-feed
 UserFeedActionInteractionSchema.index(
   { userId: 1, feedId: 1, type: 1 },
-  { unique: true, partialFilterExpression: { type: { $in: ["like", "save", "download"] } } }
+  { unique: true, partialFilterExpression: { type: { $in: ["like", "save"] } } }
 );
 
 //  Views can repeat
@@ -50,4 +52,4 @@ UserFeedActionInteractionSchema.index(
   { partialFilterExpression: { type: "share" } }
 );
 
-export default mongoose.model("UserFeedActionInteraction", UserFeedActionInteractionSchema);
+module.exports = mongoose.model("UserFeedActionInteraction", UserFeedActionInteractionSchema,"UserFeedActionInteraction");
