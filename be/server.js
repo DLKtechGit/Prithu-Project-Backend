@@ -8,6 +8,7 @@ const http=require('http');
 const Server = http.createServer(app);
 const {initSocket}=require('./middlewares/webSocket');
 const cookieParser=require('cookie-parser');
+const path = require ("path")
 
 
 // Middleware
@@ -15,24 +16,25 @@ app.use(express.json());
 app.use('/api',root);
 app.use(cookieParser());
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+const allowedOrigins = process.env.CLIENT_URL?.split(",") || ["http://localhost:5173"];
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow requests with no origin (Postman, curl)
+      console.log("🔍 Incoming Origin:", origin); // log frontend origin
+      if (!origin) return callback(null, true); 
       if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
-        return callback(new Error(msg), false); // block disallowed origins
+        return callback(new Error("CORS not allowed"), false);
       }
-      return callback(null, true); // allow origin
+      return callback(null, true);
     },
-    credentials: true, // allow cookies or Authorization headers
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // allowed HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization"],    // allowed headers
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-
-console.log(process.env.CLIENT_URL?.split(",") || ["http://localhost:3000"])
 
 // initSocket(Server);
 

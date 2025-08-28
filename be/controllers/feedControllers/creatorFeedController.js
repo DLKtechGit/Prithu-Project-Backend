@@ -8,31 +8,37 @@ const Tags = require('../../models/tagModel');
 
 
 exports.creatorFeedUpload = async (req, res) => {
-
-  console.log('creator feed upload initiated')
+  
   try {
-    const creatorId = req.params.id;
-    const { language, category, type, tags } = req.body;
+    const creatorId = req.userId;
+    const fileUrl = `http://192.168.1.77:5000/uploads/${req.file.mimetype.startsWith('video/') ? 'videos' : 'images'}/${req.file.filename}`;
+    const { language, category, tags = [], type } = req.body;
  
-
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-    console.log(req.file.path)
-    const existFeed = await Feed.findOne({ contentUrl: req.file.path });
-    console.log(existFeed)
+ 
+    const existFeed = await Feed.findOne({ contentUrl: fileUrl });
     if (existFeed) {
       return res.status(400).json({ message: 'The video has already been uploaded' });
     }
-
+ 
     let videoDuration = null;
+    let displayUrl = fileUrl;
+ 
     if (type === 'video' && req.file.mimetype.startsWith('video/')) {
       videoDuration = await getVideoDurationInSeconds(req.file.path);
+   
       if (videoDuration >= 90.0) {
         return res.status(400).json({ message: 'Upload video below 90 seconds' });
       }
+      // For video, use the video file URL
+      displayUrl = fileUrl; // Already set to /uploads/videos/
+    } else {
+      // For non-video, use the image file URL
+      displayUrl = fileUrl; // Already set to /uploads/images/
     }
-
+ 
     const newFeed = new Feed({
       type,
       language,
@@ -40,43 +46,18 @@ exports.creatorFeedUpload = async (req, res) => {
       category,
       duration: videoDuration,
       createdBy: creatorId,
-      contentUrl: req.file.path,
+      contentUrl: fileUrl,
+      displayUrl: displayUrl,
     });
+ 
     await newFeed.save();
-
-    // Handle tags
-    let tagParse;
-    if (typeof tags === 'string') {
-      try {
-        tagParse = JSON.parse(tags);
-      } catch (e) {
-        return res.status(400).json({ message: 'Invalid tags format' });
-      }
-    }
-    for (const tagName of tagParse) {
-
-      let tag = await Tags.findOne({ name: tagName });  
-      if (tag) {
-        await Tags.findOneAndUpdate(
-          { name: tagName },
-          { $addToSet: { feedIds: newFeed._id } }
-        );
-      } else {
-        // Create new tag document
-        tag = new Tags({
-          name: tagName,
-          feedIds:[newFeed._id]
-        });
-        await tag.save().then(data=> {console.log('tag saved')})
-      }
-    }
-
+ 
     await Creator.findByIdAndUpdate(
       creatorId,
       { $push: { feeds: newFeed._id } },
       { new: true }
     );
-
+ 
     return res.status(201).json({
       message: 'Feed created successfully',
       feed: newFeed,
@@ -86,6 +67,7 @@ exports.creatorFeedUpload = async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
+ 
 
 
 
@@ -98,7 +80,7 @@ exports.creatorFeedDelete = async (req, res) => {
 
     // Find the feed 
     const feed = await Feed.findById(feedId);
-    
+
     if (!feed) {
       return res.status(404).json({ message: 'Feed not found' });
     }

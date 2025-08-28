@@ -3,41 +3,60 @@ const User = require('../../models/userModels/userModel');
 const Creator = require('../../models/creatorModel');
 const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
 const Profile = require('../../models/profileSettingModel');
+const UserFeedActionInteraction =require('../../models/userActionIntersectionModel');
 
 exports.getAllFeeds = async (req, res) => {
   try {
+    // 1. Get all feeds from DB sorted by latest
     const feeds = await Feed.find().sort({ createdAt: -1 });
 
     if (!feeds || feeds.length === 0) {
       return res.status(404).json({ message: 'No feeds found' });
     }
 
+    // 2. Loop each feed and enrich it with extra data
     const enrichedFeeds = await Promise.all(
       feeds.map(async (feed) => {
-        const feedObj = feed.toObject();
+        const feedObj = feed.toObject(); // plain JS object
 
-        // Fetch creator profile
+        // 3. Fetch creator profile
         const creatorProfile = await Profile.findOne({ userId: feed.createdBy });
 
-        feedObj.creatorUsername = creatorProfile?.creatorUsername || 'Unknown';
-        feedObj.profileAvatar = creatorProfile?.creatorEmail || 'Unknown';
+        // 4. Count likes & shares from interaction table
+        const likeCount = await UserFeedActionInteraction.countDocuments({
+          feedId: feed._id,
+          type: "like"
+        });
+        const shareCount = await UserFeedActionInteraction.countDocuments({
+          feedId: feed._id,
+          type: "share"
+        });
 
-        // Add timeAgo
+        // 5. Attach new fields to feed object
+        feedObj.likesCount = likeCount || 0;
+        feedObj.shareCount = shareCount || 0;
+        feedObj.creatorUsername = creatorProfile?.creatorUsername || 'Unknown';
+        feedObj.profileAvatar = creatorProfile?.profileAvatar || 'Unknown';
+
+        // 6. Add "time ago" field
         feedObj.timeAgo = feedTimeCalculator(new Date(feedObj.createdAt));
 
         return feedObj;
       })
     );
 
+    // 7. Send response
     return res.status(200).json({
       message: 'Feeds retrieved successfully',
       feeds: enrichedFeeds,
     });
+
   } catch (error) {
     console.error('Error fetching feeds:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 
 
@@ -97,6 +116,9 @@ exports.feedsWatchByUser = async (req, res) => {
 };
 
 
+
+
+
 // exports.mostWatchedFeeds=async(req,res)=>
 // {
 //   const feeds=await Feed.find()
@@ -104,3 +126,6 @@ exports.feedsWatchByUser = async (req, res) => {
 
 //   const mostWatched=feeds.maxWatchHours>
 // }
+
+
+
