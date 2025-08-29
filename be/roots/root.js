@@ -145,7 +145,7 @@ router.post('/auth/creator/reset-password',creatorPasswordReset);
 //Creator Feed API Endpoints
 router.post("/creator/feed/:id",upload.single('file'),creatorFeedUpload);
 router.delete('/creator/delete/feed/:id',creatorFeedDelete);
-router.get('/creator/getall/feeds',auth,creatorOnly,getCreatorFeeds);
+router.get('/creator/getall/feeds',getCreatorFeeds);
 
 
 // Business Authentication API EndPoints

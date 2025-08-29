@@ -8,10 +8,11 @@ const Tags = require('../../models/tagModel');
 
 
 exports.creatorFeedUpload = async (req, res) => {
-  
+
   try {
-    const creatorId = req.userId;
-    const fileUrl = `http://192.168.1.77:5000/uploads/${req.file.mimetype.startsWith('video/') ? 'videos' : 'images'}/${req.file.filename}`;
+    const creatorId = req.params.id;
+    console.log(creatorId);
+    const fileUrl = `http://192.168.1.48:5000/uploads/${req.file.mimetype.startsWith('video/') ? 'videos' : 'images'}/${req.file.filename}`;
     const { language, category, tags = [], type } = req.body;
  
     if (!req.file) {

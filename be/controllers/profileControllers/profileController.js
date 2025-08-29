@@ -26,7 +26,7 @@ exports.validateUserProfileUpdate = [
 
 // Controller function
 exports.userProfileDetailUpdate = async (req, res) => {
-    console.log(req.body);
+   
   const userId = req.params.id;
   // Validate inputs
   const errors = validationResult(req);
@@ -66,7 +66,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
       return res.status(400).json({ message: 'No fields provided for update' });
     }
 
-    
+    console.log(updateData);
 
     const updatedOrCreatedProfile = await Profile.findOneAndUpdate(
       { userId },
@@ -74,9 +74,9 @@ exports.userProfileDetailUpdate = async (req, res) => {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).populate('userId');  // Populate dynamically based on roleRef
   
-    console.log(updateData.userName)
     
-if ((updateData.role || updateData.roleRef) || updateData.userName) {
+    
+if (updateData.role || updateData.roleRef) {
   const Model = roleModels[updateData.role || updateData.roleRef];
   console.log(Model)
   if (Model) {
@@ -86,10 +86,12 @@ if ((updateData.role || updateData.roleRef) || updateData.userName) {
         userName:updateData.userName,
       },
     });
+ 
 
     return res.status(200).json({
       message: 'Profile setting updated or created successfully',
       profile: updatedOrCreatedProfile,
+    
     });
   } else {
     return res.status(400).json({ message: 'Invalid role' });
@@ -109,7 +111,7 @@ exports.profileDetailWithId = async (req, res) => {
   try {
     // Populate userId and only bring the username
     const profile = await Profile.findOne({ userId: req.params.id })
-      .populate({ path: 'userId', select: 'username' });
+      .populate({ path: 'userId', select: 'userName'});
 
     if (!profile) {
       return res.status(404).json({ message: 'Profile not found' });  
@@ -117,7 +119,7 @@ exports.profileDetailWithId = async (req, res) => {
 
     res.status(200).json({
       profileSetting: profile,
-      userName: profile.userId.username   // Extract username from the populated userId
+      userName: profile.userId.userName   // Extract username from the populated userId
     });
   } catch (error) {
     console.error('Error fetching profile:', error);

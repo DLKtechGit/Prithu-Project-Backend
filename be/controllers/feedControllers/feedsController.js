@@ -4,6 +4,8 @@ const Creator = require('../../models/creatorModel');
 const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
 const Profile = require('../../models/profileSettingModel');
 const UserFeedActionInteraction =require('../../models/userActionIntersectionModel');
+const fs = require('fs');
+const path=require('path')
 
 exports.getAllFeeds = async (req, res) => {
   try {
@@ -21,6 +23,7 @@ exports.getAllFeeds = async (req, res) => {
 
         // 3. Fetch creator profile
         const creatorProfile = await Profile.findOne({ userId: feed.createdBy });
+        const creatorUserName=await Creator.findById(feed.createdBy).select('userName');
 
         // 4. Count likes & shares from interaction table
         const likeCount = await UserFeedActionInteraction.countDocuments({
@@ -35,8 +38,13 @@ exports.getAllFeeds = async (req, res) => {
         // 5. Attach new fields to feed object
         feedObj.likesCount = likeCount || 0;
         feedObj.shareCount = shareCount || 0;
-        feedObj.creatorUsername = creatorProfile?.creatorUsername || 'Unknown';
-        feedObj.profileAvatar = creatorProfile?.profileAvatar || 'Unknown';
+        feedObj.creatorUsername = creatorUserName?.userName || 'Unknown';
+        const creatorAvatarModify =
+          creatorProfile?.profileAvatar
+            ? path.basename(creatorProfile.profileAvatar)
+            : "Unknown";
+
+          feedObj.creatorAvatar = `http://192.168.1.77:5000/uploads/images/${creatorAvatarModify}`;
 
         // 6. Add "time ago" field
         feedObj.timeAgo = feedTimeCalculator(new Date(feedObj.createdAt));
