@@ -108,6 +108,7 @@ if (updateData.role || updateData.roleRef) {
 
 
 exports.profileDetailWithId = async (req, res) => {
+  console.log(req.params.id)
   try {
     // Populate userId and only bring the username
     const profile = await Profile.findOne({ userId: req.params.id })

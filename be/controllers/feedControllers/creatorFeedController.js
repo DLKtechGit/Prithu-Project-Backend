@@ -3,13 +3,19 @@ const Creator = require('../../models/creatorModel');
 const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
 const Tags = require('../../models/tagModel');
+const path =require ('path');
 
 
 
 
 exports.creatorFeedUpload = async (req, res) => {
+
+
   try {
     const creatorId = req.params.id;
+
+    const fileUrl = `http://192.168.1.77:5000/uploads/${req.file.mimetype.startsWith('video/') ? 'videos' : 'images'}/${req.file.filename}`;
+
     const { language, category, type, tags } = req.body;
 
 
@@ -44,6 +50,7 @@ exports.creatorFeedUpload = async (req, res) => {
 
     // Handle tags
     let tagParse;
+
     if (typeof tags === 'string') {
       try {
         tagParse = JSON.parse(tags);
@@ -90,47 +97,68 @@ exports.creatorFeedUpload = async (req, res) => {
 
 
 
+
+
 exports.creatorFeedDelete = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const creatorId = req.userId;
     const feedId = req.params.id;
 
     // Find the feed 
-    const feed = await Feed.findById(feedId);
+    const feed = await Feed.findById(feedId).session(session);
 
     if (!feed) {
+      await session.abortTransaction();
       return res.status(404).json({ message: 'Feed not found' });
     }
 
     // Check ownership
     if (feed.createdBy.toString() !== creatorId) {
+      await session.abortTransaction();
       return res.status(403).json({ message: 'Unauthorized to delete this feed' });
     }
 
-    // Delete the feed document from DB
-    await Feed.findByIdAndDelete(feedId);
+    // Delete the feed document
+    await Feed.findByIdAndDelete(feedId).session(session);
 
     // Remove feed reference from creator
     await Creator.findByIdAndUpdate(
       creatorId,
       { $pull: { feeds: feedId } },
-      { new: true }
+      { new: true, session }
     );
 
-    // Delete the file from uploads folder
-    if (feed.contentUrl) {
-      fs.unlink(feed.contentUrl, (err) => {
-        if (err) {
-          console.error('Failed to delete file:', err);
+    // Remove related tags
+    await Tags.deleteMany({ feedIds: { $in: [feedId] } }).session(session);
 
-        } else {
-          console.log('Uploaded file deleted:', feed.contentUrl);
-        }
+    await session.commitTransaction();
+    session.endSession();
+
+    // Delete file from uploads (after DB success)
+    if (feed.contentUrl) {
+      if(path.basename(feed.contentUrl).mimetype.startsWith('image/')){
+      const filePath = path.join(__dirname, "../uploads/images", feed.contentUrl); // adjust based on your storage
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Failed to delete file:", err);
+        else console.log("Uploaded file deleted:", filePath);
+  
+      });
+    }else if(path.basename(feed.contentUrl).mimetype.startsWith('video/')){
+      const filePath = path.join(__dirname, "../uploads/videos", feed.contentUrl); // adjust based on your storage
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Failed to delete file:", err);
+        else console.log("Uploaded file deleted:", filePath);
       });
     }
+  }
 
     return res.status(200).json({ message: 'Feed deleted successfully' });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error('Error deleting feed:', error);
     return res.status(500).json({ message: 'Server error' });
   }
