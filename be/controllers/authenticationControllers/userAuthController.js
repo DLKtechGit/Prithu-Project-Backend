@@ -24,59 +24,45 @@ const transporter = nodemailer.createTransport({
 exports.createNewUser = async (req, res) => {
   try {
     const { username, email, password, referralCode } = req.body;
-    console.log({ username, email, password, referralCode })
-    // Check if username or email already exists
-    if (await User.findOne({ userName:username })) {
-      return res.status(400).json({ error: 'Username already exists' });
-    }
-    if (await User.findOne({ email })) {
-      return res.status(400).json({ error: 'Email already registered' });
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Generate unique referral code for new user
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Generate unique referral code
     let referralCodeGenerated = generateReferralCode(username);
     while (await User.findOne({ referralCode: referralCodeGenerated })) {
       referralCodeGenerated = generateReferralCode(username);
     }
 
- let referredByUserId= null;
-    // RefferalCode Validation
-if (referralCode) {
-  // Find user with this referral code who is still valid for referral usage
-  const referringUser = await User.findOne({ referralCode });
+    let referredByUserId = null;
 
-  if (!referringUser || !referringUser.referralCodeIsValid) {
-    return res.status(400).json({ message: 'Referral code is expired or invalid' });
-  }
+    // Referral code validation
+    if (referralCode) {
+      const referringUser = await User.findOne({
+        referralCode,
+        referralCodeIsValid: true,
+        referralcount: { $lt: 2 }, // atomic check
+      });
 
-  // Check current referral count
-  if (referringUser.referralcount >= 2) { // 2 is your limit
-    // Optionally, mark referralCodeIsValid as false to make code invalid
-    referringUser.referralCodeIsValid = false;
-    await referringUser.save();
+      if (!referringUser) {
+        return res.status(400).json({ message: "Referral code invalid or limit reached" });
+      }
 
-    return res.status(400).json({ message: 'Referral usage limit reached' });
-  }
-  // Increment referral count atomically
-  referringUser.referralcount = (referringUser.referralcount || 0) + 1;
-  await referringUser.save();
-  
-  await User.findByIdAndUpdate({
-    referringUser:referredByUserId,
-    
-  },{$inc:{referralcount:1}})
+      // Increment referral count atomically
+      referringUser.referralcount += 1;
+      if (referringUser.referralcount >= 2) referringUser.referralCodeIsValid = false;
+      await referringUser.save();
 
-  // Proceed with your referral reward logic
-  referredByUserId  = referringUser._id;
-}
+      referredByUserId = referringUser._id;
+    }
 
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Create new user
+    // Create user
     const user = new User({
-      userName:username,
+      userName: username,
       email,
       passwordHash,
       referralCode: referralCodeGenerated,
@@ -86,22 +72,27 @@ if (referralCode) {
 
     await user.save();
 
-
-    if (referralCode) {
-      await User.findOneAndUpdate(
-        { referralCode },
-        { $addToSet: { referredPeople: user._id } }
-      );
+    // Add to referredPeople
+    if (referralCode && referredByUserId) {
+      await User.findByIdAndUpdate(referredByUserId, {
+        $addToSet: { referredPeople: user._id },
+      });
     }
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: "User registered successfully",
       referralCode: referralCodeGenerated,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error.code === 11000) {
+      // Handle duplicate key error
+      return res.status(400).json({ message: "Username or email already exists" });
+    }
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // User Login
 exports.userLogin = async (req, res) => {

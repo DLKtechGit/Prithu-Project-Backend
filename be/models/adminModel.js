@@ -24,8 +24,8 @@ const adminSchema = new mongoose.Schema({
   // Admin-specific fields
   adminType: {
     type: String,
-    enum: ['super_admin', 'admin', 'moderator'],
-    default: 'admin'
+    enum: ['Super_admin', 'Admin', 'Moderator'],
+    default: 'Admin'
   },
   permissions: {
     canManageUsers: { type: Boolean, default: false },

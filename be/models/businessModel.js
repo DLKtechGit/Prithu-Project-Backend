@@ -41,8 +41,8 @@ const businessUserSchema = new mongoose.Schema({
   
    role:{
     type:String,
-    enum:['admin','creator','user','bussiness'],
-    default:'bussiness',
+    enum:['Admin','Creator','User','Business'],
+    default:'Business',
 },
 
 

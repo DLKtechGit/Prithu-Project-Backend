@@ -112,15 +112,17 @@ exports.profileDetailWithId = async (req, res) => {
   try {
     // Populate userId and only bring the username
     const profile = await Profile.findOne({ userId: req.params.id })
-      .populate({ path: 'userId', select: 'userName'});
+      .populate({ path: 'userId', select: "userName email"});
+
+
 
     if (!profile) {
       return res.status(404).json({ message: 'Profile not found' });  
     }
-
+      
     res.status(200).json({
       profileSetting: profile,
-      userName: profile.userId.userName   // Extract username from the populated userId
+      userName:  "Unknown User"  // Extract username from the populated userId
     });
   } catch (error) {
     console.error('Error fetching profile:', error);

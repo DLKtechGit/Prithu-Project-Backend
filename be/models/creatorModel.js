@@ -20,8 +20,8 @@ const creatorsSchema = new mongoose.Schema({
   // Role
   role: {
     type: String,
-    enum: ['admin', 'creator', 'user', 'business'],
-    default: 'creator'
+    enum: ['Admin', 'Creator', 'User', 'Business'],
+    default: 'Creator'
   },
 
   // Statistics

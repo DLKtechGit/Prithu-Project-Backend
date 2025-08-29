@@ -57,8 +57,8 @@ const UserSchema = new mongoose.Schema(
     // Role and following system
     role: {
       type: String,
-      enum: ["admin", "creator", "user", "business"],
-      default: "user",
+      enum: ["Admin", "Creator", "User", "Business"],
+      default: "User",
     },
 
     // Creator follow system
