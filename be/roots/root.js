@@ -85,7 +85,8 @@ const{
 const{
   createPlan,
   updatePlan,
-  deletePlan
+  deletePlan,
+  getAllPlans
 }=require('../controllers/adminControllers/adminSubcriptionController');
 
 
@@ -188,6 +189,7 @@ router.post('/admin/feed', upload.single('file'), adminFeedUpload);
 router.post('/admin/create/subscription', createPlan); // name, price, durationDays, limits, description, planType, isActive 
 router.put('/admin/update/subscription/:id', updatePlan); // Plan ID
 router.delete('/admin/delete/subscription/:id', deletePlan);// Plan ID
+router.get('/admin/getall/subscriptions', getAllPlans);
 
 //Admin User API EndPoints
 router.get('/admin/getall/users',getAllUserDetails);

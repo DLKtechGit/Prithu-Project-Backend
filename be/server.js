@@ -10,16 +10,6 @@ const {initSocket}=require('./middlewares/webSocket');
 const cookieParser=require('cookie-parser');
 const path = require ("path")
 
-
-// Middleware
-app.use(express.json());
-app.use('/api',root);
-app.use(cookieParser());
-
-
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 const allowedOrigins = process.env.CLIENT_URL?.split(",") || ["http://localhost:5173"];
 
 app.use(
@@ -37,6 +27,17 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// Middleware
+app.use(express.json());
+app.use('/api',root);
+app.use(cookieParser());
+
+
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+
 
 // initSocket(Server);
 

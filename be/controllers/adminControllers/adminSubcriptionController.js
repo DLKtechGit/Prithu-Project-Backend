@@ -62,6 +62,8 @@ if (description && typeof description !== 'string') {
 
 
 
+
+
 exports.updatePlan = async (req, res) => {
   try {
     const { planId } = req.params;
@@ -69,21 +71,37 @@ exports.updatePlan = async (req, res) => {
       return res.status(400).json({ message: "Plan ID is required" });
     }
 
-    const allowedFields = ["name", "price", "durationDays", "limits"];
+    // ✅ Allowed fields from schema
+    const allowedFields = [
+      "name",
+      "price",
+      "durationDays",
+      "limits",
+      "description",
+      "planType",
+      "isActive"
+    ];
+
     const updates = {};
 
-    // Only pick allowed fields from req.body
-    allowedFields.forEach(field => {
+    // Pick only allowed fields
+    allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         updates[field] = req.body[field];
       }
     });
 
-    if (Object.keys(updates).length === 0) {
+    // Always update timestamp
+    updates.updatedAt = new Date();
+
+    if (Object.keys(updates).length === 1 && updates.updatedAt) {
       return res.status(400).json({ message: "No valid fields to update" });
     }
 
-    const plan = await SubscriptionPlan.findByIdAndUpdate(planId, updates, { new: true });
+    const plan = await SubscriptionPlan.findByIdAndUpdate(planId, updates, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!plan) {
       return res.status(404).json({ message: "Plan not found" });
@@ -91,10 +109,11 @@ exports.updatePlan = async (req, res) => {
 
     res.status(200).json({ message: "Plan updated", plan });
   } catch (error) {
-    console.error(error);
+    console.error("Error updating plan:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 exports.deletePlan = async (req, res) => {
@@ -105,3 +124,28 @@ exports.deletePlan = async (req, res) => {
   await SubscriptionPlan.findByIdAndDelete(planId);
   res.status(200).json({ message: "Plan deleted" });
 };
+
+
+exports.getAllPlans = async (req, res) => {
+  try {
+    const plans = await SubscriptionPlan.find();
+    if (!plans || plans.length === 0) {
+      return res.status(404).json({ message: "No plans found" });
+    }
+console.log(plans.durationDays);
+
+    // Convert duration from days to years
+    const plansWithYears = plans.map(plan => {
+      return {
+        ...plan._doc, // spread existing plan fields
+        durationYears: (plan.durationDays/ 365).toFixed(), // approximate years
+      };
+    });
+
+    res.status(200).json({ plans: plansWithYears });
+  } catch (error) {
+    console.error("Error fetching plans:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+

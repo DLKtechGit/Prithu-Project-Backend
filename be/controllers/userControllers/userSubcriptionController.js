@@ -1,24 +1,36 @@
 const UserSubscription =require ("../../models/subcriptionModels/userSubscreptionModel.js");
 const SubscriptionPlan =require("../../models/subcriptionModels/subscriptionPlanModel.js");
 const { assignPlanToUser }=require( "../../middlewares/subcriptionMiddlewares/assignPlanToUserHelper.js");
+const {processPayment}=require('../../middlewares/subcriptionMiddlewares/paymentHelper.js');
 
 exports.subscribePlan = async (req, res) => {
+
+  const { result } = req.body;
+  if (!result) {
+    return res.status(400).json({ message: "Payment result is required" });
+  }
+
   const { planId } = req.body;
   if (!planId) {
     return res.status(400).json({ message: "Plan ID is required" });
   }
-  const userId = req.user._id;
+  const userId = req.body.userId;
   if (!userId) {
     return res.status(400).json({ message: "User ID is required" });
   }
 
+  console.log({ userId, planId, result });
+
   try {
-    const subscription = await assignPlanToUser(userId, planId);
-    res.status(200).json({ message: "Plan assigned", subscription });
+    const subscriptionPayment = await processPayment(userId, planId, result);
+
+    res.status(200).json({ message: "Plan assigned", subscriptionPayment });
   } catch(err) {
     res.status(400).json({ message: err.message });
   }
 };
+
+
 
 
 exports.cancelSubscription = async (req, res) => {
