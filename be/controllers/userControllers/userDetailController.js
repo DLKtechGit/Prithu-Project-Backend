@@ -1,5 +1,6 @@
 const { param } = require("../../roots/root")
 const Users = require("../../models/userModels/userModel")
+const { processPayment } =require( "../../middlewares/subcriptionMiddlewares/paymentHelper");
 
 exports.getUserdetailWithId = async (req, res) => {
   try {
@@ -29,6 +30,23 @@ exports.getUserdetailWithId = async (req, res) => {
   }
 
 }
+
+
+
+
+exports.dummyPayment = async (req, res) => {
+  const { subscriptionId, result ,userId} = req.body; 
+  if (!userId || !subscriptionId || !result) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+  try {
+    const subscription = await processPayment(userId, subscriptionId, result);
+    res.status(200).json({ message: "Payment processed", subscription });
+  } catch(err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 
 
 

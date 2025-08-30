@@ -93,6 +93,8 @@ const UserSchema = new mongoose.Schema(
     // Terms and conditions
     termsAccepted: { type: Boolean, required: true, default: false },
     termsAcceptedAt: { type: Date },
+
+  trialUsed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

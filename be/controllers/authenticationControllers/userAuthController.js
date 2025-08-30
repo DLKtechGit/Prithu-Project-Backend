@@ -8,7 +8,7 @@ const otpStore=new Map();
 const StoreUserDevice=require('../../models/devicetrackingModel');
 const makeSessionService = require("../../services/sessionService");
 
-const sessionService = makeSessionService(User,StoreUserDevice);
+// const sessionService = makeSessionService(User,StoreUserDevice);
 
 
 // Create nodemailer transporter
@@ -120,14 +120,14 @@ exports.userLogin = async (req, res) => {
     );
 
     // Create session and get session id
-    const deviceId = await sessionService.createSession(user._id,role,roleRef, userToken, req );
+    // const deviceId = await sessionService.createSession(user._id,role,roleRef, userToken, req );
    
   
 
     // Send JSON response with token and user info
     res.json({
       token: userToken,
-      deviceId,
+      // deviceId,
       user: {
         userId: user._id,
         userName: user.userName,

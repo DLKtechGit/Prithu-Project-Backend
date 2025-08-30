@@ -70,7 +70,12 @@ const adminSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
     default: null
-  }
+  },
+
+  feeds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Feed'
+    }],
 
 }, { 
   timestamps: true,

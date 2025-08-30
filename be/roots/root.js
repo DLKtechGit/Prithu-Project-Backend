@@ -82,9 +82,22 @@ const{
   getUserDownloadedFeeds,
 }=require('../controllers/feedControllers/userActionsFeedController');
 
+const{
+  createPlan,
+  updatePlan,
+  deletePlan
+}=require('../controllers/adminControllers/adminSubcriptionController');
 
 
+const{
+  subscribePlan,
+  cancelSubscription,
+  getAllSubscriptionPlans,
+}=require('../controllers/userControllers/userSubcriptionController');
 
+const{
+  adminFeedUpload,
+}=require('../controllers/adminControllers/adminfeedController');
 
 
 const storage = multer.diskStorage({
@@ -132,6 +145,9 @@ router.post('/user/feed/comment',addComment);
 router.get('/user/saved/feeds/:id',getUserSavedFeeds);
 router.get('/user/saved/download/:id',getUserDownloadedFeeds);
 
+//User Subscription API EndPoints
+router.post('/user/plan/subscription',subscribePlan); // UserId, PlanId
+router.post('/user/cancel/subscription/:id', cancelSubscription);//UserId, SubscriptionId
 
 
 //Creator Authentication API EndPoints 
@@ -144,7 +160,7 @@ router.post('/auth/creator/reset-password',creatorPasswordReset);
 
 //Creator Feed API Endpoints
 router.post("/creator/feed/:id",upload.single('file'),creatorFeedUpload);
-router.delete('/creator/delete/feed/:id',creatorFeedDelete);
+router.delete('/creator/delete/feed',creatorFeedDelete); // userId , feedId
 router.get('/creator/getall/feeds',getCreatorFeeds);
 
 
@@ -166,8 +182,12 @@ router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',adminPasswordReset);
 
 //Admin Feed API EndPoints
-router.post('/admin/feed', auth, creatorOnly, upload.single('file'), creatorFeedUpload);
+router.post('/admin/feed', upload.single('file'), adminFeedUpload);
 
+//Admin Subscription API EndPoints
+router.post('/admin/create/subscription', createPlan); // name, price, durationDays, limits, description, planType, isActive 
+router.put('/admin/update/subscription/:id', updatePlan); // Plan ID
+router.delete('/admin/delete/subscription/:id', deletePlan);// Plan ID
 
 //Admin User API EndPoints
 router.get('/admin/getall/users',getAllUserDetails);
@@ -194,8 +214,8 @@ router.get('/all/tags/:id',getTagsWithId)
  router.get('/get/profile/detail/:id',profileDetailWithId)
 
 
-
-
+ //Subscription Plan API EndPoints
+router.get('/getall/subscriptions', getAllSubscriptionPlans);
 
 
 
