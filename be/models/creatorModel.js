@@ -14,9 +14,8 @@ const creatorsSchema = new mongoose.Schema({
   otpExpiresAt: { type: Date },
 
   // Profile
-      profileSettings: [
-        { type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
-      ],
+      profileSettings:{ type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
+    
   // Role
   role: {
     type: String,

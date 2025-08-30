@@ -42,4 +42,4 @@ const ProfileSettingsSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('ProfileSettings', ProfileSettingsSchema, 'ProfilesSettings');
+module.exports = mongoose.model('ProfilesSettings', ProfileSettingsSchema, 'ProfilesSettings');

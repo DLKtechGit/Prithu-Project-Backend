@@ -94,14 +94,13 @@ exports.downloadFeed = async (req, res) => {
 
 
 exports.shareFeed = async (req, res) => {
-  const { userId, feedId, channel} = req.body;
+  const { userId, feedId} = req.body;
 
   try {
     const share = await UserFeedActionInteraction.create({
       userId,
       feedId,
       type: "share",
-      shareChannel: channel, // e.g. "whatsapp"
     });
     res.status(201).json(share);
   } catch (err) {

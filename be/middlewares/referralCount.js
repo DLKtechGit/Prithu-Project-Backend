@@ -1,60 +1,43 @@
+// const userLevelSchema=require('../models/userModels/userReferralLevelModel')
+// const User = require("../models/userModels/userModel");
 
-exports.refferalStructure=async(referralCode)=>{
+// exports.refferalStructure=async(referralCode)=>{
+//     // RefferalCode Validation
+// if (referralCode) {
+//   const referringUser = await User.findOne({ referralCode })
+       
+//   if (referringUser.referralCodeUsageLimit >= 2) 
+//        {
+//    referringUser.referralCodeUsageLimt += 1;
+//     referringUser.referralcount = (referringUser.referralcount || 0) + 1;
+//        }else
+//         {
+//    referringUser.referralCodeIsValid = false;
+//        }
 
-    let referredByUserId= null;
-    // RefferalCode Validation
-if (referralCode) {
-  // Find user with this referral code who is still valid for referral usage
+//  const userLevelUpdate = await userLevelSchema.findOne({ userId: referringUser._id });
 
+// if (userLevelUpdate) {
+//   // If userLevel document exists, just push the referring user
+//   userLevelUpdate.referringPeople.push(referringUser._id);
+//   await userLevelUpdate.save();
+// } else {
+//   // If no userLevel document exists
+//   if (referringUser.referredBy === null) {
+//     const newUserLevel = new userLevelSchema({
+//       userId: referringUser._id,
+//       level: 1,           // Initialize level 1
+//       userLimit: 1,       // Initialize user limit 1
+//       referringPeople: [referringUser._id] // Push the referring user
+//     });
 
-  
-    
+//     await newUserLevel.save();
+//   }
+//   if(referringUser.referredBy !== null){
 
-      const referringUser = await User.findOne({ referralCode });
-      
-        if (!referringUser || !referringUser.referralCodeIsValid) {
-            return res.status(400).json({ message: 'Referral code is expired or invalid' });
-        }
+//     const referred
+//   }
 
-          if (referringUser.referralcount >= 2) { // 2 is your limit
-    // Optionally, mark referralCodeIsValid as false to make code invalid
-    referringUser.referralCodeIsValid = false;
-    await referringUser.save();
-
-    return res.status(400).json({ message: 'Referral usage limit reached' });
-  }
-
-  if(referringUser!==null && referringUser!==undefined) {
-
-      for (let i = 0; i < 1; i++) {
-
-      // Check current referral count
-
-   // Increment referral count atomically
-  referringUser.referralcount = (referringUser.referralcount || 0) + 1;
-  await referringUser.save();
-
-  const referredBy = await User.findById({
-    _id: referringUser._id,
-  })
-
-  if(referredBy)
-  {
-  referringUser=referredBy;
-}else
-{
-    referringUser=null;
-}
-      }
-  }
-
-
-  
- 
-
-referredByUserId  = referringUser._id;
-  // Proceed with your referral reward 
-}
-return  referredByUserId;
-
-}
+// }
+// }
+// }

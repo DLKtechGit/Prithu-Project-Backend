@@ -39,13 +39,7 @@ const adminSchema = new mongoose.Schema({
   },
 
   // Profile information
-  profile: {
-    firstName: { type: String, trim: true },
-    lastName: { type: String, trim: true },
-    displayName: { type: String, trim: true },
-    avatarUrl: { type: String, default: '' },
-    phoneNumber: { type: String, trim: true }
-  },
+  profileSettings:{ type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
 
   // Status tracking
   isActive: { type: Boolean, default: true },

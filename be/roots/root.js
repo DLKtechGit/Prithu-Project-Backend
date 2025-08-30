@@ -81,6 +81,7 @@ const{
   addComment,
   getUserSavedFeeds,
   getUserDownloadedFeeds,
+  shareFeed,
 }=require('../controllers/feedControllers/userActionsFeedController');
 
 const{
@@ -107,6 +108,12 @@ const{
   getAllCreatorDetails,
 }=require('../controllers/creatorControllers/creatorDetailController');
 
+const{
+  followCreator,
+  unfollowCreator,
+  getUserFollowers,
+  getCreatorFollowers,
+}=require('../controllers/followersControllers.js/followerDetailController');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -148,6 +155,7 @@ router.post('/user/feed/like',likeFeed);
 router.post('/user/feed/save',saveFeed);
 router.post('/user/feed/download',downloadFeed);
 router.post('/user/feed/comment',addComment);
+router.post('/user/feed/share',shareFeed);
 
 //User Feed Get Actions
 router.get('/user/saved/feeds/:id',getUserSavedFeeds);
@@ -156,6 +164,11 @@ router.get('/user/saved/download/:id',getUserDownloadedFeeds);
 //User Subscription API EndPoints
 router.post('/user/plan/subscription',subscribePlan); // UserId, PlanId
 router.post('/user/cancel/subscription/:id', cancelSubscription);//UserId, SubscriptionId
+
+//User Follower API EndPoints
+router.post('/user/follow/creator', followCreator);
+router.post('/user/unfollow/creator', unfollowCreator);
+router.get('/user/get/followers', getUserFollowers); 
 
 
 //Creator Authentication API EndPoints 
@@ -172,6 +185,8 @@ router.post("/creator/feed/schedule/:id",upload.single('file'),creatorFeedSchedu
 router.delete('/creator/delete/feed',creatorFeedDelete); // userId , feedId
 router.get('/creator/getall/feeds',getCreatorFeeds);
 
+//Creator Follower API EndPoints
+router.get('/creator/get/followers', getCreatorFollowers);
 
 // Business Authentication API EndPoints
 router.post('/auth/business/register',createNewBusinessUser);

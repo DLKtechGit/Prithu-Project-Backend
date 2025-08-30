@@ -50,9 +50,8 @@ const UserSchema = new mongoose.Schema(
     commentFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
 
     // Profile
-    profileSettings: [
-      { type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
-    ],
+    profileSettings: { type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
+    
 
     // Role and following system
     role: {

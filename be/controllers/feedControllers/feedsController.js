@@ -39,6 +39,7 @@ exports.getAllFeeds = async (req, res) => {
         feedObj.likesCount = likeCount || 0;
         feedObj.shareCount = shareCount || 0;
         feedObj.creatorUsername = creatorUserName?.userName || 'Unknown';
+        feedObj.creatorId = feed.createdBy;
         const creatorAvatarModify =
           creatorProfile?.profileAvatar
             ? path.basename(creatorProfile.profileAvatar)

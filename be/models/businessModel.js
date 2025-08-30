@@ -25,25 +25,7 @@ const businessUserSchema = new mongoose.Schema({
   otpExpiresAt: { type: Date },
   
   // bussiness Profile
-  profilePicture: {
-    type: String,
-    default: ''
-  },
-  displayName: {
-    type: String,
-    default: ''
-  },
-  bio: {
-    type: String,
-    default: '',
-    maxlength: 500
-  },
-  
-   role:{
-    type:String,
-    enum:['Admin','Creator','User','Business'],
-    default:'Business',
-},
+ profileSettings:{ type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
 
 
 

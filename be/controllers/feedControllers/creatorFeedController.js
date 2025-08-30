@@ -4,6 +4,7 @@ const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
 const Tags = require('../../models/tagModel');
 const path =require ('path');
+const {feedTimeCalculator}=require("../../middlewares/feedTimeCalculator");
 
 
 
@@ -203,8 +204,11 @@ exports.creatorFeedDelete = async (req, res) => {
 
 exports.getCreatorFeeds = async (req, res) => {
   try {
-    const creatorId = req.userId;
+    const { creatorId } = req.body;
 
+    if (!creatorId) {
+      return res.status(400).json({ message: "Creator ID is required" });
+    }
 
     const feeds = await Feed.find({ createdBy: creatorId }).sort({ createdAt: -1 });
 
@@ -212,17 +216,23 @@ exports.getCreatorFeeds = async (req, res) => {
       return res.status(404).json({ message: 'No feeds found for this creator' });
     }
 
+    const feedsWithTimeAgo = feeds.map(feed => ({
+      ...feed.toObject(),
+      timeAgo: feedTimeCalculator(feed.createdAt)
+    }));
+
     return res.status(200).json({
       message: 'Creator feeds retrieved successfully',
-      feeds,
-      count: feeds.length,
+      count: feedsWithTimeAgo.length,
+      feeds: feedsWithTimeAgo
     });
 
   } catch (error) {
     console.error('Error fetching creator feeds:', error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error', error });
   }
 };
+
 
 
 
