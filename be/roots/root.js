@@ -115,6 +115,13 @@ const{
   getCreatorFollowers,
 }=require('../controllers/followersControllers.js/followerDetailController');
 
+const{
+  createCategory,
+  // updateCategory,
+  deleteCategory
+}=require('../controllers/adminControllers/adminCatagoryController');
+
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     console.log(req)
@@ -156,6 +163,8 @@ router.post('/user/feed/save',saveFeed);
 router.post('/user/feed/download',downloadFeed);
 router.post('/user/feed/comment',addComment);
 router.post('/user/feed/share',shareFeed);
+
+
 
 //User Feed Get Actions
 router.get('/user/saved/feeds/:id',getUserSavedFeeds);
@@ -207,6 +216,10 @@ router.post('/auth/admin/reset-password',adminPasswordReset);
 
 //Admin Feed API EndPoints
 router.post('/admin/feed', upload.single('file'), adminFeedUpload);
+
+//Admin Category API EndPoints
+router.post('/admin/feed/category', createCategory);
+router.delete('/admin/feed/category/:id', deleteCategory);
 
 //Admin Subscription API EndPoints
 router.post('/admin/create/subscription', createPlan); // name, price, durationDays, limits, description, planType, isActive 

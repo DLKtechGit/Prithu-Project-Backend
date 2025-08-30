@@ -1,5 +1,5 @@
 const Feed = require('../../models/feedModel');
-const Admin= require('../../models/adminModel');
+const Admin= require('../../models/adminModels/adminModel');
 const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
 const Tags = require('../../models/tagModel');

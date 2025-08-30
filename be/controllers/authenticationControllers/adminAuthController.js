@@ -1,4 +1,4 @@
-const Admin = require('../../models/adminModel');
+const Admin = require('../../models/adminModels/adminModel');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();

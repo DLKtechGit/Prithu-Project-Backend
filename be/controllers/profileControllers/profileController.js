@@ -2,7 +2,7 @@ const { body, validationResult } = require('express-validator');
 const Profile = require('../../models/profileSettingModel');
 const User=require('../../models/userModels/userModel');
 const Creator=require('../../models/creatorModel');
-const Admin = require('../../models/adminModel');
+const Admin = require('../../models/adminModels/adminModel');
 const Business=require('../../models/businessModel');
 const path = require("path");
 
