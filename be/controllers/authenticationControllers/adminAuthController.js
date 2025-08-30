@@ -60,9 +60,9 @@ exports.adminLogin = async (req, res) => {
     const admin = await Admin.findOne({
       $or: [{ userName: identifier }, { email: identifier }],
     });
-    if (!admin.userName) {
-      return res.status(400).json({ error: 'Invalid userName' });
-    }
+    // if (!admin.userName) {
+    //   return res.status(400).json({ error: 'Invalid userName' });
+    // }
 
 
 
