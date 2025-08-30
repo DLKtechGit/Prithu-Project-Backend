@@ -77,6 +77,8 @@ commandedByUsers: [
      ref: 'User'
      }],
 
+  scheduledAt: { type: Date }, // time to post
+  isPosted: { type: Boolean, default: false },
 
 
   // Array of views by users with timestamps and watch duration per user

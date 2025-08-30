@@ -37,6 +37,7 @@ const{
   creatorFeedUpload,
   creatorFeedDelete,
   getCreatorFeeds,
+  creatorFeedScheduleUpload,
 }=require('../controllers/feedControllers/creatorFeedController')
 
 const{
@@ -101,6 +102,12 @@ const{
 }=require('../controllers/adminControllers/adminfeedController');
 
 
+const{
+  getCreatorDetailWithId,
+  getAllCreatorDetails,
+}=require('../controllers/creatorControllers/creatorDetailController');
+
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     console.log(req)
@@ -161,6 +168,7 @@ router.post('/auth/creator/reset-password',creatorPasswordReset);
 
 //Creator Feed API Endpoints
 router.post("/creator/feed/:id",upload.single('file'),creatorFeedUpload);
+router.post("/creator/feed/schedule/:id",upload.single('file'),creatorFeedScheduleUpload);
 router.delete('/creator/delete/feed',creatorFeedDelete); // userId , feedId
 router.get('/creator/getall/feeds',getCreatorFeeds);
 
@@ -198,6 +206,11 @@ router.get("/admin/users/status",getUserStatus);
 // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
+//Admin Creator API Endpoints
+router.get('/admin/getall/creators',getAllUserDetails);
+// router.get('/admin/get/creator/:id',getUserdetailWithId);
+// router.get("/admin/creators/status",getUserStatus);
+router.get('/admin/creators/status',getUserStatus);
 
 //Feeds API EndPoints
 router.get('/all/feeds',getAllFeeds)
