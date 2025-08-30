@@ -207,10 +207,10 @@ router.get("/admin/users/status",getUserStatus);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
 //Admin Creator API Endpoints
-router.get('/admin/getall/creators',getAllUserDetails);
-// router.get('/admin/get/creator/:id',getUserdetailWithId);
+router.get('/admin/getall/creators',getAllCreatorDetails);
+router.get('/admin/get/creator/:id',getCreatorDetailWithId);
 // router.get("/admin/creators/status",getUserStatus);
-router.get('/admin/creators/status',getUserStatus);
+// router.get('/admin/creators/status',getCreatorDetailWithId);
 
 //Feeds API EndPoints
 router.get('/all/feeds',getAllFeeds)

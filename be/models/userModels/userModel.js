@@ -61,14 +61,6 @@ const UserSchema = new mongoose.Schema(
       default: "User",
     },
 
-    // Creator follow system
-    followingCreators: [
-      {
-        creatorId: { type: mongoose.Schema.Types.ObjectId, ref: "Creator" },
-        followedAt: { type: Date, default: Date.now },
-      },
-    ],
-    totalFollowingCreators: { type: Number, default: 0 },
 
     // General following/followers
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Creator" }],
