@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema(
     referralCodeIsValid: { type: Boolean, default: true },
     referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     referralCount: { type: Number, default: 0 },
-    referredPeople: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    
 
     // Preferences
     websiteLanguage: { type: String, default: "en" },

@@ -3,7 +3,7 @@ const router=express.Router();
 const multer=require('multer')
 const app=express();
 const path=require('path')
-const auth=require('../middlewares/jwtAuthentication');
+const {auth}=require('../middlewares/jwtAuthentication');
 const creatorOnly=require('../middlewares/creatorOnly');
 const adminOnly=require('../middlewares/adminOnly')
 
@@ -190,10 +190,10 @@ router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
 router.post('/auth/creator/reset-password',creatorPasswordReset);
 
 //Creator Feed API Endpoints
-router.post("/creator/feed/:id",upload.single('file'),creatorFeedUpload);
-router.post("/creator/feed/schedule/:id",upload.single('file'),creatorFeedScheduleUpload);
-router.delete('/creator/delete/feed',creatorFeedDelete); // userId , feedId
-router.get('/creator/getall/feeds',getCreatorFeeds);
+router.post("/creator/feed/:id",auth,upload.single('file'),creatorFeedUpload);
+router.post("/creator/feed/schedule/:id",auth,upload.single('file'),creatorFeedScheduleUpload);
+router.delete('/creator/delete/feeds',auth,creatorFeedDelete); // userId , feedId
+router.get('/creator/getall/feeds',auth,getCreatorFeeds);
 
 //Creator Follower API EndPoints
 router.get('/creator/get/followers', getCreatorFollowers);
@@ -216,7 +216,7 @@ router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',adminPasswordReset);
 
 //Admin Feed API EndPoints
-router.post('/admin/feed', upload.single('file'), adminFeedUpload);
+router.post('/admin/feed',auth,upload.single('file'), adminFeedUpload);
 
 //Admin Category API EndPoints
 router.post('/admin/feed/category', createCategory);

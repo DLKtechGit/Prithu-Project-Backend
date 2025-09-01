@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const feedsSchema = new mongoose.Schema({
-  // Content type, required: image, video, or text
+  // Content type: image, video, or text
   type: { 
     type: String, 
     enum: ['image', 'video', 'text'], 
@@ -24,24 +24,32 @@ const feedsSchema = new mongoose.Schema({
   text: String,
 
   // Author reference
-  createdBy: { // preserved original naming
+  createdBy: { 
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Creator',
+    refPath: 'createdByRole', // dynamic reference based on role
+    required: true
+  },
+
+  // Role of the author: admin or creator
+  createdByRole: { 
+    type: String, 
+    enum: ['Admin', 'Creator'], 
+    required: true 
   },
 
   // Timestamp of creation
   createdAt: { 
     type: Date, 
-    default: Date.now,
+    default: Date.now 
   },
 
   // Category of feed (required)
   category: {
     type: String,
-    required: true,
+    required: true
   },
 
-  // Duration in seconds (for video/audios)
+  // Duration in seconds (for video/audio)
   duration: { 
     type: Number, 
     default: 0 
@@ -57,45 +65,26 @@ const feedsSchema = new mongoose.Schema({
   maxWatchHours: { 
     type: Number, 
     default: null 
-  }, 
+  },
 
   // Like, share, download counts
-  likesCount: { 
-    type: Number, 
-    default: 0 
-  },
-  shareCount: {
-    type: Number,
-    default: 0,
-  },
-  downloadsCount: { 
-    type: Number, 
-    default: 0 
-  },
-commandedByUsers: [
-  { type: mongoose.Schema.Types.ObjectId,
-     ref: 'User'
-     }],
+  likesCount: { type: Number, default: 0 },
+  shareCount: { type: Number, default: 0 },
+  downloadsCount: { type: Number, default: 0 },
+
+  commandedByUsers: [
+    { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  ],
 
   scheduledAt: { type: Date }, // time to post
   isPosted: { type: Boolean, default: false },
 
-
   // Array of views by users with timestamps and watch duration per user
   viewedBy: [{
-    userId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User' 
-    },
-    viewedAt: { 
-      type: Date, 
-      default: Date.now 
-    },
-    watchTime: { 
-      type: Number, 
-      default: 0 
-    } 
-  }],
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    viewedAt: { type: Date, default: Date.now },
+    watchTime: { type: Number, default: 0 }
+  }]
 });
 
 // Indexes for performance optimization

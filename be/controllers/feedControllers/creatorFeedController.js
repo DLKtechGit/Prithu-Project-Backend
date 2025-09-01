@@ -11,7 +11,7 @@ const {feedTimeCalculator}=require("../../middlewares/feedTimeCalculator");
 
 exports.creatorFeedUpload = async (req, res) => {
   try {
-    const creatorId = req.params.id;
+    const creatorId = req.role;
 
     if (!creatorId) {
       return res.status(400).json({ message: "Creator ID is required" });
@@ -80,7 +80,7 @@ if (existFeed) {
       tags: tagParse, // ✅ always array
       category,
       duration: videoDuration,
-      createdBy: creatorId,
+      createdByRole: creatorId,
       contentUrl: req.file.path,
     });
     await newFeed.save();

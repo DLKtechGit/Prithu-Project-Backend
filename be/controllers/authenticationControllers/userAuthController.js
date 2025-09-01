@@ -7,7 +7,7 @@ const { generateReferralCode } = require('../../middlewares/generateReferralCode
 const otpStore=new Map();
 const StoreUserDevice=require('../../models/devicetrackingModel');
 const makeSessionService = require("../../services/sessionService");
-const referralCount = require('../../middlewares/referralCount');
+const {referralStructure} = require('../../middlewares/referralCount');
 
 // const sessionService = makeSessionService(User,StoreUserDevice);
 
@@ -77,16 +77,16 @@ exports.createNewUser = async (req, res) => {
       referredByCode: referralCode || null,
       referredByUserId,
     });
-    await user.save();
+     await user.save();
 
     // Add new user to referrer's referredPeople
     if (referringUser) {
-      if (!referringUser.referredPeople) referringUser.referredPeople = [];
-      referringUser.referredPeople.push(user._id);
-      await referringUser.save();
-
+      
       // Update referral structure (levels and tiers)
-      await referralCount.referralStructure(referringUser.referralCode, user._id);
+       const referralStructures = await referralStructure(referringUser.referralCode, user._id);
+      if (!referralStructures.success) {
+        return res.status(400).json({ message: referralStructures.message });
+      }
     }
 
     return res.status(201).json({

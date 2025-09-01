@@ -1,20 +1,27 @@
 const jwt = require('jsonwebtoken');
-const Creator=require('../models/creatorModel')
 require('dotenv').config();
 
 
-
-module.exports =async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Invalid Token' });
+exports.auth = (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    const creator = await Creator.findById(req.userId);
-    if (!creator) return res.status(401).json({ error: 'Unauthorized' });
-    req.role = creator.role;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Token missing or invalid' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // Verify and decode token
+    const decoded = jwt.verify(token, 'your_secret_key');
+
+    // Attach role to request object
+    req.role = decoded.role;
+    req.Id = decoded.userId;
+
     next();
-  } catch (e) {
-    res.status(401).json({ error: 'Your Session Expried Login again' });
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    res.status(401).json({ message: 'Unauthorized' });
   }
 };

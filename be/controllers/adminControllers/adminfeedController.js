@@ -7,10 +7,10 @@ const path =require ('path');
 
 exports.adminFeedUpload = async (req, res) => {
   try {
-    const adminId = req.params.id;
+    const adminRole = req.role;
 
-    if (!adminId) {
-      return res.status(400).json({ message: "Admin ID is required" });
+    if (!adminRole) {
+      return res.status(400).json({ message: "Admin role is required" });
     }
 
     // Construct file URL
@@ -76,7 +76,7 @@ if (existFeed) {
       tags: tagParse, // ✅ always array
       category,
       duration: videoDuration,
-      createdBy: adminId,
+      createdByRole: adminRole,
       contentUrl: req.file.path,
     });
     await newFeed.save();

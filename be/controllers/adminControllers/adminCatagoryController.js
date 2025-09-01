@@ -67,7 +67,7 @@ exports.deleteCategory = async (req, res) => {
 exports.getAllCategories = async (req, res) => {
   try {
     const categories = await FeedCategory.find();
-    res.status(200).json({ categories });
+    res.status(200).json( categories );
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ message: 'Internal server error' });
