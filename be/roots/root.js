@@ -118,7 +118,8 @@ const{
 const{
   createCategory,
   // updateCategory,
-  deleteCategory
+  deleteCategory,
+  getAllCategories
 }=require('../controllers/adminControllers/adminCatagoryController');
 
 
@@ -220,6 +221,7 @@ router.post('/admin/feed', upload.single('file'), adminFeedUpload);
 //Admin Category API EndPoints
 router.post('/admin/feed/category', createCategory);
 router.delete('/admin/feed/category/:id', deleteCategory);
+router.get('/admin/feed/category', getAllCategories);
 
 //Admin Subscription API EndPoints
 router.post('/admin/create/subscription', createPlan); // name, price, durationDays, limits, description, planType, isActive 

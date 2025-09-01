@@ -7,6 +7,7 @@ const { generateReferralCode } = require('../../middlewares/generateReferralCode
 const otpStore=new Map();
 const StoreUserDevice=require('../../models/devicetrackingModel');
 const makeSessionService = require("../../services/sessionService");
+const referralCount = require('../../middlewares/referralCount');
 
 // const sessionService = makeSessionService(User,StoreUserDevice);
 
@@ -39,28 +40,35 @@ exports.createNewUser = async (req, res) => {
     }
 
     let referredByUserId = null;
+    let referringUser = null;
 
     // Referral code validation
     if (referralCode) {
-      const referringUser = await User.findOne({
+      referringUser = await User.findOne({
         referralCode,
         referralCodeIsValid: true,
-        referralcount: { $lt: 2 }, // atomic check
       });
 
       if (!referringUser) {
-        return res.status(400).json({ message: "Referral code invalid or limit reached" });
+        return res.status(400).json({ message: "Referral code invalid." });
       }
 
-      // Increment referral count atomically
-      referringUser.referralcount += 1;
-      if (referringUser.referralcount >= 2) referringUser.referralCodeIsValid = false;
+      // Check usage limit
+      if (referringUser.referralCodeUsageLimit >= 2) {
+        referringUser.referralCodeIsValid = false;
+        await referringUser.save();
+        return res.status(400).json({ message: "Referral code is no longer valid." });
+      }
+
+      // Increment referral usage
+      referringUser.referralCodeUsageLimit += 1;
+      referringUser.referralCount = (referringUser.referralCount || 0) + 1;
       await referringUser.save();
 
       referredByUserId = referringUser._id;
     }
 
-    // Create user
+    // Create new user
     const user = new User({
       userName: username,
       email,
@@ -69,29 +77,32 @@ exports.createNewUser = async (req, res) => {
       referredByCode: referralCode || null,
       referredByUserId,
     });
-
     await user.save();
 
-    // Add to referredPeople
-    if (referralCode && referredByUserId) {
-      await User.findByIdAndUpdate(referredByUserId, {
-        $addToSet: { referredPeople: user._id },
-      });
+    // Add new user to referrer's referredPeople
+    if (referringUser) {
+      if (!referringUser.referredPeople) referringUser.referredPeople = [];
+      referringUser.referredPeople.push(user._id);
+      await referringUser.save();
+
+      // Update referral structure (levels and tiers)
+      await referralCount.referralStructure(referringUser.referralCode, user._id);
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "User registered successfully",
       referralCode: referralCodeGenerated,
     });
+
   } catch (error) {
     if (error.code === 11000) {
-      // Handle duplicate key error
       return res.status(400).json({ message: "Username or email already exists" });
     }
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 // User Login

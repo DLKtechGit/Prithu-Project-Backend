@@ -9,4 +9,4 @@ const followerSchema = new mongoose.Schema({
 // Prevent duplicate follows
 followerSchema.index({ userId: 1, creatorId: 1 }, { unique: true });
 
-module.exports = mongoose.model("Follower", followerSchema,"Follower");
+module.exports = mongoose.model("Followers", followerSchema,"Followers");
