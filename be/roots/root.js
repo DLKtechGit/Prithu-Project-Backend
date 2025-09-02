@@ -67,7 +67,7 @@ const{
 
 const{
   userProfileDetailUpdate,
-  profileDetailWithId,
+  profileDetailWithAccountId
 }=require('../controllers/profileControllers/profileController')
 
 const{
@@ -122,6 +122,12 @@ const{
   getAllCategories
 }=require('../controllers/adminControllers/adminCatagoryController');
 
+const{
+  addAccount,
+  switchAccount,
+  getActiveAccount,
+  getAllAccounts
+}=require('../controllers/accountController');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -256,13 +262,17 @@ router.get('/all/tags/:id',getTagsWithId)
 
 //Profile Setting detail with id
  router.post('/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
- router.get('/get/profile/detail/:id',profileDetailWithId)
+ router.get('/get/profile/detail/:id',profileDetailWithAccountId)
 
 
  //Subscription Plan API EndPoints
 router.get('/getall/subscriptions', getAllSubscriptionPlans);
 
 
-
+//Account API EndPoints
+router.post('/account/add',addAccount);
+router.post('/account/switch',auth,switchAccount);
+router.get('/account/active',auth,getActiveAccount);
+router.get('/account/all',auth,getAllAccounts);
 
 module.exports= router;

@@ -6,7 +6,8 @@ const Admin = require('../../models/adminModels/adminModel');
 const Business=require('../../models/businessModel');
 const path = require("path");
 
-// Validation middleware array
+
+// Validation middleware
 exports.validateUserProfileUpdate = [
   body('phoneNumber').optional().isMobilePhone().withMessage('Invalid phone number'),
   body('bio').optional().isString(),
@@ -15,8 +16,7 @@ exports.validateUserProfileUpdate = [
   body('profileAvatar').optional().isString(),
   body('userName').optional().isString(),
   body('displayName').optional().isString(),
-  body('role').optional().isIn(['creator', 'business', 'consumer', 'admin']),
-  body('roleRef').optional().isIn(['User', 'Business', 'Creator', 'Admin']),
+  body('role').optional().isIn(['creator', 'business', 'user']),
   body('theme').optional().isIn(['light', 'dark']),
   body('language').optional().isString(),
   body('timezone').optional().isString(),
@@ -25,75 +25,36 @@ exports.validateUserProfileUpdate = [
   body('privacy').optional().isObject(),
 ];
 
-// Controller function
-
+// Update profile controller
 exports.userProfileDetailUpdate = async (req, res) => {
-  const userId = req.params.id;
-
-  if (!userId) {
-    return res.status(400).json({ message: "User ID is required" });
-  }
-
-  // Validate inputs
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res
-      .status(400)
-      .json({ message: "Validation failed", errors: errors.array() });
-  }
-
-  const roleModels = {
-    User,
-    Creator,
-    Admin,
-    Business,
-  };
-
   try {
-    const updateData = {};
-
-    if (req.body.phoneNumber !== undefined)
-      updateData.phoneNumber = req.body.phoneNumber;
-    if (req.body.bio !== undefined) updateData.bio = req.body.bio;
-    if (req.body.userName !== undefined) updateData.userName = req.body.userName;
-    if (req.body.dateOfBirth !== undefined)
-      updateData.dateOfBirth = req.body.dateOfBirth;
-    if (req.body.maritalStatus !== undefined)
-      updateData.maritalStatus = req.body.maritalStatus;
-    if (req.body.displayName !== undefined)
-      updateData.displayName = req.body.displayName;
-    if (req.body.role !== undefined) updateData.role = req.body.role;
-    if (req.body.roleRef !== undefined) updateData.roleRef = req.body.roleRef;
-    if (req.body.theme !== undefined) updateData.theme = req.body.theme;
-    if (req.body.language !== undefined)
-      updateData.language = req.body.language;
-    if (req.body.timezone !== undefined)
-      updateData.timezone = req.body.timezone;
-    if (req.body.details !== undefined) updateData.details = req.body.details;
-    if (req.body.notifications !== undefined)
-      updateData.notifications = req.body.notifications;
-    if (req.body.privacy !== undefined) updateData.privacy = req.body.privacy;
-
-    // 1 Role and RoleRef are mandatory
-    if (!req.body.role || !req.body.roleRef) {
-      return res
-        .status(400)
-        .json({ message: "role and roleRef are required" });
+    const { accountId } = req.body;
+    if (!accountId) {
+      return res.status(400).json({ message: "accountId is required" });
     }
 
-    // 2If file uploaded, check basename before saving
-    if (req.file?.path !== undefined) {
+    // Validate input
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: "Validation failed", errors: errors.array() });
+    }
+
+    const allowedFields = [
+      'phoneNumber','bio','userName','displayName','dateOfBirth','maritalStatus',
+      'role','theme','language','timezone','details','notifications','privacy'
+    ];
+
+    const updateData = {};
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    });
+
+    // Handle profile avatar file if uploaded
+    if (req.file?.path) {
       const newFileName = path.basename(req.file.path);
-
-      // Fetch current profile
-      const existingProfile = await Profile.findOne({ userId });
-
-      if (
-        !existingProfile ||
-        !existingProfile.profileAvatar ||
-        path.basename(existingProfile.profileAvatar) !== newFileName
-      ) {
-        updateData.profileAvatar = req.file.path; // only save if new basename
+      const existingProfile = await Profile.findOne({ accountId });
+      if (!existingProfile || path.basename(existingProfile.profileAvatar || '') !== newFileName) {
+        updateData.profileAvatar = req.file.path;
       }
     }
 
@@ -101,30 +62,21 @@ exports.userProfileDetailUpdate = async (req, res) => {
       return res.status(400).json({ message: "No fields provided for update" });
     }
 
-    // 3Update Profile
-    const updatedOrCreatedProfile = await Profile.findOneAndUpdate(
-      { userId },
+    // Update or create profile for the account
+    const updatedProfile = await Profile.findOneAndUpdate(
+      { accountId },
       { $set: updateData },
       { new: true, upsert: true, setDefaultsOnInsert: true }
-    ).populate("userId");
+    ).populate({
+      path: 'accountId',
+      populate: { path: 'userId', select: 'userName email' }
+    });
 
-    // 4️Sync to respective role model
-    const Model = roleModels[updateData.role || updateData.roleRef];
-    if (Model) {
-      await Model.findByIdAndUpdate(userId, {
-        $set: {
-          profileSettings: updatedOrCreatedProfile._id,
-          userName: updateData.userName,
-        },
-      });
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      profile: updatedProfile,
+    });
 
-      return res.status(200).json({
-        message: "Profile setting updated or created successfully",
-        profile: updatedOrCreatedProfile,
-      });
-    } else {
-      return res.status(400).json({ message: "Invalid role" });
-    }
   } catch (error) {
     console.error("Error in userProfileDetailUpdate:", error);
     return res.status(500).json({ message: "Internal Server Error" });
@@ -132,29 +84,26 @@ exports.userProfileDetailUpdate = async (req, res) => {
 };
 
 
-exports.profileDetailWithId = async (req, res) => {
-  const userId = req.params.id;
-  if (!userId) {
-    return res.status(400).json({ message: "User ID is required" });
-  }
+// Fetch profile by account ID
+exports.profileDetailWithAccountId = async (req, res) => {
   try {
-    // Populate userId and only bring the username
-    const profile = await Profile.findOne({ userId })
-      .populate({ path: 'userId', select: "userName email" });
+    const { accountId } = req.params;
+    if (!accountId) return res.status(400).json({ message: "accountId is required" });
 
+    const profile = await Profile.findOne({ accountId })
+      .populate({ path: 'accountId', populate: { path: 'userId', select: 'userName email' } });
 
-    if (!profile) {
-      return res.status(404).json({ message: 'Profile not found' });  
-    }
-     
-    res.status(200).json({
+    if (!profile) return res.status(404).json({ message: 'Profile not found' });
+
+    return res.status(200).json({
       profileSetting: profile,
-      userName: profile.userId.userName || "Unknown User"  // Extract username from the populated userId
+      userName: profile.accountId?.userId?.userName || "Unknown User",
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
-    res.status(500).json({ message: 'Internal server error' });  
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
  
 

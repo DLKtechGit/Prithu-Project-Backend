@@ -1,45 +1,27 @@
 const mongoose = require('mongoose');
 
-const ProfileSettingsSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: 'roleRef', // dynamic reference field
-      index: true,
-    },
-    roleRef: {
-      type: String,
-      required: true,
-      enum: ['User', 'Business', 'Creator', 'Admin'], // exact model names referenced
-    },
-    dateOfBirth: { type: Date,},         // corrected casing and default null
-    maritalStatus: { type: String },     // boolean default should be null or false
-    displayName: { type: String,},
-    bio: { type: String,},
-    phoneNumber: { type: String,},
-    profileAvatar: { type: String, },
-    role: {
-      type: String,
-      enum: ['creator', 'business', 'consumer', 'admin'],
-      required: true,
-    },
-    theme: { type: String, default: 'light' },           // 'light' or 'dark'
-    notifications: {
-      email: { type: Boolean, default: true },
-      sms: { type: Boolean, default: false },
-    },
-    privacy: {
-      showEmail: { type: Boolean, default: false },
-      showProfilePicture: { type: Boolean, default: true },
-    },
-    language: { type: String, default: 'en' },            // default language code
-    timezone: { type: String, default: 'Asia/Kolkata' }, // default timezone
-    details: { type: mongoose.Schema.Types.Mixed },      // flexible role-specific details
+const ProfileSettingsSchema = new mongoose.Schema({
+  accountId: { type: mongoose.Schema.Types.ObjectId, ref: "Account", required: true },
+  role: { type: String, enum: ["user","business","creator"], required: true },
+  displayName: { type: String },
+  userName: { type: String },
+  bio: { type: String },
+  dateOfBirth: { type: Date },
+  maritalStatus: { type: String },
+  phoneNumber: { type: String },
+  profileAvatar: { type: String },
+  theme: { type: String, default: 'light' },
+  notifications: {
+    email: { type: Boolean, default: true },
+    sms: { type: Boolean, default: false },
   },
-  {
-    timestamps: true,
-  }
-);
+  privacy: {
+    showEmail: { type: Boolean, default: false },
+    showProfilePicture: { type: Boolean, default: true },
+  },
+  language: { type: String, default: 'en' },
+  timezone: { type: String, default: 'Asia/Kolkata' },
+  details: { type: mongoose.Schema.Types.Mixed },
+}, { timestamps: true });
 
-module.exports = mongoose.model('ProfilesSettings', ProfileSettingsSchema, 'ProfilesSettings');
+module.exports = mongoose.model('ProfileSettings', ProfileSettingsSchema);

@@ -8,6 +8,7 @@ const otpStore=new Map();
 const StoreUserDevice=require('../../models/devicetrackingModel');
 const makeSessionService = require("../../services/sessionService");
 const {referralStructure} = require('../../middlewares/referralCount');
+const Account = require('../../models/accountSchemaModel');
 
 // const sessionService = makeSessionService(User,StoreUserDevice);
 
@@ -77,13 +78,22 @@ exports.createNewUser = async (req, res) => {
       referredByCode: referralCode || null,
       referredByUserId,
     });
-     await user.save();
+    await user.save();
+
+    // Create default "User" account
+    const account = new Account({
+      userId: user._id,
+      type: "User"
+    });
+    await account.save();
+
+    // Link account to user
+    user.activeAccount = account._id;
+    await user.save();
 
     // Add new user to referrer's referredPeople
     if (referringUser) {
-      
-      // Update referral structure (levels and tiers)
-       const referralStructures = await referralStructure(referringUser.referralCode, user._id);
+      const referralStructures = await referralStructure(referringUser.referralCode, user._id);
       if (!referralStructures.success) {
         return res.status(400).json({ message: referralStructures.message });
       }
@@ -92,6 +102,7 @@ exports.createNewUser = async (req, res) => {
     return res.status(201).json({
       message: "User registered successfully",
       referralCode: referralCodeGenerated,
+      account,
     });
 
   } catch (error) {

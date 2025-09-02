@@ -9,21 +9,30 @@ const DeviceSchema = new mongoose.Schema({
   lastActiveAt: { type: Date, default: Date.now },
 });
 
-// Final User schema
+
 const UserSchema = new mongoose.Schema(
   {
     userName: { type: String, required: true, unique: true, minlength: 3, maxlength: 30 },
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
 
+    // Account roles
+    roles: [{ type: String, enum: ["User", "Business", "Creator"] }],
+
+    activeAccount: { type: mongoose.Schema.Types.ObjectId, ref: "Account" },
+
+    // Role-specific profile data
+    userProfile: { type: mongoose.Schema.Types.ObjectId, ref: "UserProfile" },
+    creatorProfile: { type: mongoose.Schema.Types.ObjectId, ref: "CreatorProfile" },
+    businessProfile: { type: mongoose.Schema.Types.ObjectId, ref: "BusinessProfile" },
+
     // Referral system
     referralCode: { type: String, unique: true, index: true },
     referredByCode: { type: String },
-    referralCodeUsageLimit: { type: Number, default: 0 }, // ✅ fixed typo
+    referralCodeUsageLimit: { type: Number, default: 0 },
     referralCodeIsValid: { type: Boolean, default: true },
     referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     referralCount: { type: Number, default: 0 },
-    
 
     // Preferences
     websiteLanguage: { type: String, default: "en" },
@@ -36,20 +45,15 @@ const UserSchema = new mongoose.Schema(
     savedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
     viewedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
     totalFeedsWatchDuration: { type: Number, default: 0 },
-    commentFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }], // ✅ fixed typo
+    commentFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
 
-    // Profile
-    profileSettings: { type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
-
-    // Role and following system
-    role: { type: String, enum: ["Admin", "Creator", "User", "Business"], default: "User" },
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Creators" }], // ✅ keep consistent with User
+    // Following
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     // Devices & session
     devices: { type: [DeviceSchema], default: [] },
     activeSession: { type: String, default: null },
     isOnline: { type: Boolean, default: false, index: true },
-    lastSeen: { type: Date, default: null },
     lastSeenAt: { type: Date, default: null },
     fcmTokens: { type: [String], default: [] },
 
@@ -71,9 +75,6 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Password comparison
-UserSchema.methods.comparePassword = function (password) {
-  return bcrypt.compare(password, this.passwordHash);
-};
+
 
 module.exports = mongoose.models.User || mongoose.model("User", UserSchema, "User");
