@@ -17,7 +17,6 @@ exports.creatorFeedUpload = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-
     const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
       return res.status(403).json({ message: "Active Creator account required to upload feed" });
@@ -26,13 +25,15 @@ exports.creatorFeedUpload = async (req, res) => {
 
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    const fileUrl = `http://192.168.1.77:5000/uploads/${
-      req.file.mimetype.startsWith("video/") ? "videos" : "images"
-    }/${req.file.filename}`;
+    const { language, category, type } = req.body;
+    if (!language || !category || !type) {
+      return res.status(400).json({ message: "Language, category, and type are required" });
+    }
 
-    const { language, category, type, tags } = req.body;
-    if (!language || !category || !type || !tags) {
-      return res.status(400).json({ message: "Language, category, type, and tags are required" });
+    // Validate category exists
+    const categoryExist = await Categories.findById(category);
+    if (!categoryExist) {
+      return res.status(400).json({ message: "Category not found" });
     }
 
     // Prevent duplicate upload
@@ -49,50 +50,30 @@ exports.creatorFeedUpload = async (req, res) => {
       }
     }
 
-    // Parse tags
-    let tagParse = [];
-    if (typeof tags === "string") {
-      try {
-        tagParse = JSON.parse(tags);
-        if (!Array.isArray(tagParse)) throw new Error();
-      } catch {
-        tagParse = tags.split(",").map((t) => t.trim());
-      }
-    } else if (Array.isArray(tags)) tagParse = tags;
-
     // Save feed
     const newFeed = new Feed({
       type,
       language,
-      tags: tagParse,
-      category,
+      category, // single category reference
       duration: videoDuration,
       createdByAccount: creatorAccountId,
       contentUrl: req.file.path,
     });
     await newFeed.save();
 
-    console.log("hi")
-
-    // Update tags
-    for (const tagName of tagParse) {
-      let tag = await Tags.findOne({ name: tagName });
-      if (tag) {
-        await Tags.findOneAndUpdate({ name: tagName }, { $addToSet: { feedIds: newFeed._id } });
-      } else {
-        await new Tags({ name: tagName, feedIds: [newFeed._id] }).save();
-      }
-    }
+    // Push feed reference to category
+    await Categories.findByIdAndUpdate(category, { $push: { feedIds: newFeed._id } });
 
     // Update active account with feed reference
     await Account.findByIdAndUpdate(creatorAccountId, { $push: { feeds: newFeed._id } });
 
     return res.status(201).json({ message: "Feed created successfully", feed: newFeed });
   } catch (error) {
-     console.error("Error creating feed:", error);
+    console.error("Error creating feed:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
+
  
  
 

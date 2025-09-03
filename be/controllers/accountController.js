@@ -98,32 +98,46 @@ exports.switchToUserAccount = async (req, res) => {
 
 exports.checkAccountStatus = async (req, res) => {
   try {
-    // const userId = req.Id; // from auth middleware
-    const userId =req.body.id
+    const userId = req.Id || req.body.id; // support auth middleware or body
 
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    // Find all accounts for this user
-    const accounts = await Account.find({ userId });
+    // Fetch user with activeAccount
+    const user = await User.findById(userId).populate({
+      path: "activeAccount",
+      model: "Account",
+      select: "type",
+    });
 
-    if (!accounts || accounts.length === 0) {
-      return res.status(404).json({ message: "No Creator or Business account found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Determine roles
-    const roles = accounts.map(acc => acc.type); // ["Creator"], ["Business"], or ["Creator","Business"]
+    // Fetch all accounts for the user
+    const accounts = await Account.find({ userId }).select("type");
+
+    const roles = accounts.map(acc => acc.type); // ["Creator"], ["Business"], etc.
+
+    // Determine active account type
+    let activeAccountType = null;
+    if (user.activeAccount) {
+      activeAccountType = user.activeAccount.type;
+    }
 
     res.status(200).json({
-      message: "Accounts found",
-      type: roles,
+      message: "Account status fetched successfully",
+      roles,                 // all account types the user has
+      activeAccountType,     // current active account (null if none)
+      hasAccounts: accounts.length > 0, // true if user has any accounts
     });
   } catch (err) {
     console.error("CheckAccountStatus Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 
