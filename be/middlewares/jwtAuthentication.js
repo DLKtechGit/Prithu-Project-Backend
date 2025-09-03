@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-
 exports.auth = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -13,11 +12,12 @@ exports.auth = (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     // Verify and decode token
-    const decoded = jwt.verify(token, 'your_secret_key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
 
-    // Attach role to request object
-    req.role = decoded.role;
-    req.Id = decoded.userId;
+    // Attach info to request object
+    req.Id = decoded.userId;      
+    req.role = decoded.role;       
+    req.accountId = decoded.accountId || null; 
 
     next();
   } catch (error) {

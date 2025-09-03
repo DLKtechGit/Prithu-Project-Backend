@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const ProfileSettingsSchema = new mongoose.Schema({
   accountId: { type: mongoose.Schema.Types.ObjectId, ref: "Account"},
-  role: { type: String, enum: ["user","business","creator"], required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User"},
+  role: { type: String, enum: ["User","Business","Creator"], required: true },
   displayName: { type: String },
   userName: { type: String },
   bio: { type: String },

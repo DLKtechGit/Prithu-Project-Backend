@@ -67,7 +67,7 @@ const{
 
 const{
   userProfileDetailUpdate,
-  profileDetailWithAccountId
+  getProfileDetail,
 }=require('../controllers/profileControllers/profileController')
 
 const{
@@ -262,7 +262,7 @@ router.get('/all/tags/:id',getTagsWithId)
 
 //Profile Setting detail with id
  router.post('/profile/detail/update',upload.single('file'),userProfileDetailUpdate)
- router.get('/get/profile/detail/:id',profileDetailWithAccountId)
+ router.get('/get/profile/detail',getProfileDetail)
 
 
  //Subscription Plan API EndPoints
@@ -270,9 +270,9 @@ router.get('/getall/subscriptions', getAllSubscriptionPlans);
 
 
 //Account API EndPoints
-router.post('/account/add',addAccount);
-router.post('/account/switch',auth,switchAccount);
-router.get('/account/active',auth,getActiveAccount);
-router.get('/account/all',auth,getAllAccounts);
+router.post('/account/add',auth,addAccount); //Send Token
+router.post('/account/switch',auth,switchAccount); //Send Token
+router.get('/account/active',auth,getActiveAccount); //Send Token
+router.get('/account/all',auth,getAllAccounts); //Send Token
 
 module.exports= router;
