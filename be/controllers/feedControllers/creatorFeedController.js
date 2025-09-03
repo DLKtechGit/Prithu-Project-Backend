@@ -1,7 +1,7 @@
 const Feed = require('../../models/feedModel');
 const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
-const Tags = require('../../models/tagModel');
+const Tags = require('../../models/categorySchema');
 const path =require ('path');
 const Account=require("../../models/accountSchemaModel");
 const {feedTimeCalculator}=require("../../middlewares/feedTimeCalculator");

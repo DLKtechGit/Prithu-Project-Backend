@@ -1,4 +1,4 @@
-const Tags = require('../models/tagModel');
+const Tags = require('../models/categorySchema');
 const { param } = require('../roots/root');
 
 

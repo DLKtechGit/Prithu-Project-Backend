@@ -165,6 +165,10 @@ router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
 router.post("/auth/user/logout",userlogOut);
 
+//Fresh Users API EndPoints
+// router.post('/app/language',auth,createLanguage);
+// router.post('/feed/country',auth,createCountry);
+
 //User Feed Actions
 router.post('/user/feed/like',likeFeed);
 router.post('/user/feed/save',auth,saveFeed);

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const tagSchema = new mongoose.Schema({
+const categorySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -9,11 +9,7 @@ const tagSchema = new mongoose.Schema({
   },
   
   feedIds:[{type:mongoose.Schema.Types.ObjectId,ref:'Feeds'}],
-
-  description: {
-    type: String,
-    default: ''
-  },
+  
   createdAt: {
     type: Date,
     default: Date.now
@@ -21,4 +17,4 @@ const tagSchema = new mongoose.Schema({
 
 });
 
-module.exports = mongoose.model('Tag', tagSchema, 'Tags');
+module.exports = mongoose.model('Categories', categorySchema, 'Categories');

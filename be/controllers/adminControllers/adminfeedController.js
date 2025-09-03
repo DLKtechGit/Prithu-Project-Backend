@@ -2,7 +2,7 @@ const Feed = require('../../models/feedModel');
 const Admin= require('../../models/adminModels/adminModel');
 const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
-const Tags = require('../../models/tagModel');
+const Tags = require('../../models/categorySchema');
 const path =require ('path');
 
 exports.adminFeedUpload = async (req, res) => {

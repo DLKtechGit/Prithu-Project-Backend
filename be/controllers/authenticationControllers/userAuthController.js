@@ -136,7 +136,7 @@ exports.userLogin = async (req, res) => {
 
     // Generate JWT token
     const userToken = jwt.sign(
-      { userName: user.userName, role: user.role ,referralCode: user.referralCode },
+      { userName: user.userName,userId: user._id, role: user.role ,referralCode: user.referralCode },
       process.env.JWT_SECRET,
       { expiresIn: '32d' }
     );
@@ -149,13 +149,6 @@ exports.userLogin = async (req, res) => {
     // Send JSON response with token and user info
     res.json({
       token: userToken,
-      // deviceId,
-      user: {
-        userId: user._id,
-        userName: user.userName,
-         email: user.email,
-        role: user.role,
-      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

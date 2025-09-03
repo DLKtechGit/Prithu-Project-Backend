@@ -1,20 +1,27 @@
 const mongoose = require('mongoose');
 
 const feedsSchema = new mongoose.Schema({
+
   type: { 
     type: String, 
-    enum: ['image', 'video', 'text'], 
+    enum: ['image', 'video'], 
     required: true 
   },
+
+  contentUrlType: {
+    type: String,
+    enum: ['image', 'video'],
+    required: true
+  },
+
   language: { 
     type: String, 
     required: true 
   },
-  tags: [String],
+  category: [String],
   contentUrl: String,
   text: String,
 
-  // Author reference: now always points to Account model
   createdByAccount: { 
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Account',
@@ -27,29 +34,29 @@ const feedsSchema = new mongoose.Schema({
     default: Date.now 
   },
 
-  category: { type: String, required: true },
-  duration: { type: Number, default: 0 },
-  totalWatchTime: { type: Number, default: 0 },
-  maxWatchHours: { type: Number, default: null },
-  likesCount: { type: Number, default: 0 },
-  shareCount: { type: Number, default: 0 },
-  downloadsCount: { type: Number, default: 0 },
+  
+  // duration: { type: Number, default: 0 },
+  // totalWatchTime: { type: Number, default: 0 },
+  // maxWatchHours: { type: Number, default: null },
+  // likesCount: { type: Number, default: 0 },
+  // shareCount: { type: Number, default: 0 },
+  // downloadsCount: { type: Number, default: 0 },
 
-  commandedByUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // commandedByUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
-  scheduledAt: { type: Date },
-  isPosted: { type: Boolean, default: false },
+  // scheduledAt: { type: Date },
+  // isPosted: { type: Boolean, default: false },
 
-  viewedBy: [{
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    viewedAt: { type: Date, default: Date.now },
-    watchTime: { type: Number, default: 0 }
-  }]
+  // viewedBy: [{
+  //   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  //   viewedAt: { type: Date, default: Date.now },
+  //   watchTime: { type: Number, default: 0 }
+  // }]
 });
 
-// Indexes
-feedsSchema.index({ 'viewedBy.userId': 1 });
-feedsSchema.index({ duration: 1 });
-feedsSchema.index({ totalWatchTime: 1 });
+// // Indexes
+// feedsSchema.index({ 'viewedBy.userId': 1 });
+// feedsSchema.index({ duration: 1 });
+// feedsSchema.index({ totalWatchTime: 1 });
 
 module.exports = mongoose.model('Feeds', feedsSchema, 'Feeds');
