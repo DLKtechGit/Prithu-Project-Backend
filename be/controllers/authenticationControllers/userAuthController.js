@@ -138,7 +138,7 @@ exports.userLogin = async (req, res) => {
     const userToken = jwt.sign(
       { userName: user.userName, role: user.role ,referralCode: user.referralCode },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '32d' }
     );
 
     // Create session and get session id

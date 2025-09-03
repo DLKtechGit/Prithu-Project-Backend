@@ -1,70 +1,68 @@
 const Feed = require('../../models/feedModel');
 const User = require('../../models/userModels/userModel');
 const Creator = require('../../models/creatorModel');
+const Account = require('../../models/accountSchemaModel');
 const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
-const Profile = require('../../models/profileSettingModel');
-const UserFeedActionInteraction =require('../../models/userActionIntersectionModel');
+const UserFeedActionInteraction =require('../../models/userFeedInterSectionModel.js');
 const fs = require('fs');
-const path=require('path')
+const path=require('path');
 
 exports.getAllFeeds = async (req, res) => {
   try {
-    // 1. Get all feeds from DB sorted by latest
-    const feeds = await Feed.find().sort({ createdAt: -1 });
+    const feeds = await Feed.find()
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "createdByAccount", // Feed -> Account
+        populate: {
+          path: "profileData", // Account -> Profile
+          select: "userName profileAvatar" // only fetch these fields
+        }
+      });
 
-    if (!feeds || feeds.length === 0) {
-      return res.status(404).json({ message: 'No feeds found' });
+    if (!feeds.length) {
+      return res.status(404).json({ message: "Please Add Image file" });
     }
 
-    // 2. Loop each feed and enrich it with extra data
     const enrichedFeeds = await Promise.all(
-      feeds.map(async (feed) => {
-        const feedObj = feed.toObject(); // plain JS object
+      feeds.map(async feed => {
+        const feedObj = feed.toObject();
 
-        // 3. Fetch creator profile
-        const creatorProfile = await Profile.findOne({ userId: feed.createdBy });
-        const creatorUserName=await Creator.findById(feed.createdBy).select('userName');
+        const account = feed.createdByAccount;
+        const profile = account?.profileData;
 
-        // 4. Count likes & shares from interaction table
-        const likeCount = await UserFeedActionInteraction.countDocuments({
+        feedObj.creatorUsername = profile?.userName || "Unknown";
+        feedObj.creatorAvatar = profile?.profileAvatar
+          ? `http://192.168.1.77:5000/uploads/images/${path.basename(profile.profileAvatar)}`
+          : "Unknown";
+
+        // count likes and shares
+        feedObj.likesCount = await UserFeedActionInteraction.countDocuments({
           feedId: feed._id,
           type: "like"
         });
-        const shareCount = await UserFeedActionInteraction.countDocuments({
+        feedObj.shareCount = await UserFeedActionInteraction.countDocuments({
           feedId: feed._id,
           type: "share"
         });
 
-        // 5. Attach new fields to feed object
-        feedObj.likesCount = likeCount || 0;
-        feedObj.shareCount = shareCount || 0;
-        feedObj.creatorUsername = creatorUserName?.userName || 'Unknown';
-        feedObj.creatorId = feed.createdBy;
-        const creatorAvatarModify =
-          creatorProfile?.profileAvatar
-            ? path.basename(creatorProfile.profileAvatar)
-            : "Unknown";
-
-          feedObj.creatorAvatar = `http://192.168.1.77:5000/uploads/images/${creatorAvatarModify}`;
-
-        // 6. Add "time ago" field
-        feedObj.timeAgo = feedTimeCalculator(new Date(feedObj.createdAt));
+        // time ag
+        feedObj.timeAgo = feedTimeCalculator(feed.createdAt);
 
         return feedObj;
       })
     );
 
-    // 7. Send response
-    return res.status(200).json({
-      message: 'Feeds retrieved successfully',
-      feeds: enrichedFeeds,
+    res.status(200).json({
+      message: "Feeds retrieved successfully",
+      feeds: enrichedFeeds
     });
-
   } catch (error) {
-    console.error('Error fetching feeds:', error);
-    return res.status(500).json({ message: 'Server error' });
+    console.error("Error in getAllFeeds:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 
 
@@ -128,13 +126,6 @@ exports.feedsWatchByUser = async (req, res) => {
 
 
 
-// exports.mostWatchedFeeds=async(req,res)=>
-// {
-//   const feeds=await Feed.find()
-//   if(feeds){return res.status(400).json({message:"No Feeds Found"})}
-
-//   const mostWatched=feeds.maxWatchHours>
-// }
 
 
 

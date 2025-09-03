@@ -3,27 +3,27 @@ const Creator = require("../../models/creatorModel");
 const mongoose = require("mongoose");
 
 
-exports.followCreator = async (req, res) => {
+// Follow an account (e.g., follow a Creator account)
+exports.followAccount = async (req, res) => {
   try {
-    const userId = req.body.userId;
-    const creatorId = req.body.creatorId;
-
+    const userId = req.Id; // current logged-in account
+    const creatorId = req.body.accountId; // account to follow
     if (!userId || !creatorId) {
-      return res.status(400).json({ message: "User ID and Creator ID are required" });
+      return res.status(400).json({ message: "Follower and Target account IDs are required" });
     }
-
 
     if (userId === creatorId) {
-      return res.status(400).json({ message: "You cannot follow yourself" });
+      return res.status(400).json({ message: "You cannot follow your own account" });
     }
 
-    const creator = await Creator.findById(creatorId);
-    if (!creator || creator.role !== "creator") {
-      return res.status(404).json({ message: "Creator not found" });
+    // Ensure target exists and is a Creator
+    const targetAccount = await Account.findById(creatorId);
+    if (!targetAccount || targetAccount.type !== "Creator") {
+      return res.status(404).json({ message: "Creator account not found" });
     }
 
     // Create follow relation
-    await Follower.create({ userId, creatorId });
+    await Follower.create({ userId, followingAccountId: creatorId });
 
     res.status(200).json({ message: "Followed successfully" });
   } catch (error) {
@@ -34,21 +34,23 @@ exports.followCreator = async (req, res) => {
   }
 };
 
-
-
-exports.unfollowCreator = async (req, res) => {
+// Unfollow an account
+exports.unfollowAccount = async (req, res) => {
   try {
-    const userId = req.body.userId;
-    const creatorId = req.body.creatorId;
+    const userId = req.Id;
+    const creatorId = req.body.accountId;
 
     if (!userId || !creatorId) {
-      return res.status(400).json({ message: "User ID and Creator ID are required" });
+      return res.status(400).json({ message: "Follower and Target account IDs are required" });
     }
 
-    const deleted = await Follower.findOneAndDelete({ userId, creatorId });
+    const deleted = await Follower.findOneAndDelete({
+      userId,
+      followingAccountId: creatorId
+    });
 
     if (!deleted) {
-      return res.status(400).json({ message: "You are not following this creator" });
+      return res.status(400).json({ message: "You are not following this account" });
     }
 
     res.status(200).json({ message: "Unfollowed successfully" });
@@ -57,41 +59,48 @@ exports.unfollowCreator = async (req, res) => {
   }
 };
 
-
-
-
-exports.getUserFollowers = async (req, res) => {
-  if (!req.body.userId) {
-    return res.status(400).json({ message: "User ID is required" });
-  }
-
+// Get all followers of the current account
+exports.getAccountFollowers = async (req, res) => {
   try {
-    const followers = await Follower.find({ userId: req.body.userId })
+    const accountId = req.accountId;
+
+    if (!accountId) {
+      return res.status(400).json({ message: "Account ID is required" });
+    }
+
+    const followers = await Follower.find({ followingAccountId: accountId })
       .populate({
-        path: "creatorId",
-        select: "userName profileSettings",
+        path: "userId",
         populate: {
-          path: "profileSettings",
+          path: "profileData", // ProfileSettings ref
           select: "profileAvatar"
+        }
+      })
+      .populate({
+        path: "userId",
+        populate: {
+          path: "userId", // User ref inside Account
+          select: "userName email"
         }
       });
 
-    const formattedFollowers = followers.map(f => {
+    const formatted = followers.map(f => {
       return {
-        userName: f.creatorId?.userName || "Unavailable",
-        profileAvatar: f.creatorId?.profileSettings?.profileAvatar || "Unavailable",
+        userName: f.userId?.userId?.userName || "Unavailable",
+        email: f.userId?.userId?.email || "Unavailable",
+        profileAvatar: f.userId?.profileData?.profileAvatar || "Unavailable"
       };
     });
 
     res.status(200).json({
-      count: formattedFollowers.length,
-      followers: formattedFollowers
+      count: formatted.length,
+      followers: formatted
     });
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
 
 
 

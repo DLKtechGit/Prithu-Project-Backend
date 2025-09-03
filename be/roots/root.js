@@ -96,6 +96,7 @@ const{
   subscribePlan,
   cancelSubscription,
   getAllSubscriptionPlans,
+  getUserSubscriptionPlanWithId
 }=require('../controllers/userControllers/userSubcriptionController');
 
 const{
@@ -109,9 +110,9 @@ const{
 }=require('../controllers/creatorControllers/creatorDetailController');
 
 const{
-  followCreator,
-  unfollowCreator,
-  getUserFollowers,
+  followAccount,
+  unfollowAccount,
+  getAccountFollowers,
   getCreatorFollowers,
 }=require('../controllers/followersControllers.js/followerDetailController');
 
@@ -166,37 +167,36 @@ router.post("/auth/user/logout",userlogOut);
 
 //User Feed Actions
 router.post('/user/feed/like',likeFeed);
-router.post('/user/feed/save',saveFeed);
-router.post('/user/feed/download',downloadFeed);
-router.post('/user/feed/comment',addComment);
-router.post('/user/feed/share',shareFeed);
-
-
+router.post('/user/feed/save',auth,saveFeed);
+router.post('/user/feed/download',auth,downloadFeed);
+router.post('/user/feed/comment',auth,addComment);
+router.post('/user/feed/share',auth,shareFeed);
 
 //User Feed Get Actions
-router.get('/user/saved/feeds/:id',getUserSavedFeeds);
-router.get('/user/saved/download/:id',getUserDownloadedFeeds);
+router.get('/user/saved/feeds',auth,getUserSavedFeeds);
+router.get('/user/saved/download',auth,getUserDownloadedFeeds);
 
 //User Subscription API EndPoints
-router.post('/user/plan/subscription',subscribePlan); // UserId, PlanId
-router.post('/user/cancel/subscription/:id', cancelSubscription);//UserId, SubscriptionId
+router.post('/user/plan/subscription',auth,subscribePlan); // UserId, PlanId
+router.post('/user/cancel/subscription',auth,cancelSubscription);//UserId, SubscriptionId
+router.get('/user/user/subscriptions',auth,getUserSubscriptionPlanWithId);
 
 //User Follower API EndPoints
-router.post('/user/follow/creator', followCreator);
-router.post('/user/unfollow/creator', unfollowCreator);
-router.get('/user/get/followers', getUserFollowers); 
+router.post('/user/follow/creator',auth,followAccount);
+ router.post('/user/unfollow/creator',auth,unfollowAccount);
+ router.get('/user/get/followers',auth,getAccountFollowers); 
 
 
-//Creator Authentication API EndPoints 
-router.post('/auth/creator/register',createNewCreator);
-router.post('/auth/creator/login',creatorLogin);
-router.post('/auth/creator/sent-otp',creatorSendOtp);
-router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
-router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
-router.post('/auth/creator/reset-password',creatorPasswordReset);
+// //Creator Authentication API EndPoints 
+// router.post('/auth/creator/register',createNewCreator);
+// router.post('/auth/creator/login',creatorLogin);
+// router.post('/auth/creator/sent-otp',creatorSendOtp);
+// router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
+// router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
+// router.post('/auth/creator/reset-password',creatorPasswordReset);
 
 //Creator Feed API Endpoints
-router.post("/creator/feed/:id",auth,upload.single('file'),creatorFeedUpload);
+router.post("/creator/feed/upload",auth,upload.single('file'),creatorFeedUpload);
 router.post("/creator/feed/schedule/:id",auth,upload.single('file'),creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds',auth,creatorFeedDelete); // userId , feedId
 router.get('/creator/getall/feeds',auth,getCreatorFeeds);
@@ -204,13 +204,13 @@ router.get('/creator/getall/feeds',auth,getCreatorFeeds);
 //Creator Follower API EndPoints
 router.get('/creator/get/followers', getCreatorFollowers);
 
-// Business Authentication API EndPoints
-router.post('/auth/business/register',createNewBusinessUser);
-router.post('/auth/business/login',businessLogin);
-router.post('/auth/business/sent-otp',businessSendOtp);
-router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
-router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
-router.post('/auth/business/reset-password',businessPasswordReset);
+// // Business Authentication API EndPoints
+// router.post('/auth/business/register',createNewBusinessUser);
+// router.post('/auth/business/login',businessLogin);
+// router.post('/auth/business/sent-otp',businessSendOtp);
+// router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
+// router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
+// router.post('/auth/business/reset-password',businessPasswordReset);
 
 
 //Admin Authentication API EndPoints
@@ -261,7 +261,7 @@ router.get('/all/tags/:id',getTagsWithId)
 
 
 //Profile Setting detail with id
- router.post('/profile/detail/update/:id',upload.single('file'),userProfileDetailUpdate)
+ router.post('/profile/detail/update',upload.single('file'),userProfileDetailUpdate)
  router.get('/get/profile/detail/:id',profileDetailWithAccountId)
 
 

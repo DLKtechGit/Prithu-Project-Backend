@@ -14,7 +14,7 @@ exports.subscribePlan = async (req, res) => {
   if (!planId) {
     return res.status(400).json({ message: "Plan ID is required" });
   }
-  const userId = req.body.userId;
+  const userId = req.userId;
   if (!userId) {
     return res.status(400).json({ message: "User ID is required" });
   }
@@ -46,6 +46,25 @@ if (!subscriptionId) {
   res.status(200).json({ message: "Subscription cancelled" });
 };
 
+
+exports.getUserSubscriptionPlanWithId = async (req, res) => {
+  const userId = req.userId;
+  if (!userId) {
+    return res.status(400).json({ message: "User ID is required" });
+  }
+  
+
+  try {
+    const plan = await SubscriptionPlan.findById(userId);
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+    res.status(200).json({ plan });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 exports.getAllSubscriptionPlans = async (req, res) => {
   try {

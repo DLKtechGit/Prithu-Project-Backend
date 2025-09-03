@@ -3,7 +3,7 @@ const mongoose=require("mongoose");
 const AccountSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   type: { type: String, enum: ["User", "Business", "Creator"], required: true },
-  profileData: { type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings" },
+  profileData:{ type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings" },
 
   createdAt: { type: Date, default: Date.now }
 });
@@ -11,4 +11,4 @@ const AccountSchema = new mongoose.Schema({
 // prevent duplicate account type per user
 AccountSchema.index({ userId: 1, type: 1 }, { unique: true });
 
-module.exports = mongoose.model("Account", AccountSchema);
+module.exports = mongoose.model("Account", AccountSchema,"Accounts");

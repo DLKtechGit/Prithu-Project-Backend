@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const ProfileSettingsSchema = new mongoose.Schema({
-  accountId: { type: mongoose.Schema.Types.ObjectId, ref: "Account", required: true },
+  accountId: { type: mongoose.Schema.Types.ObjectId, ref: "Account"},
   role: { type: String, enum: ["user","business","creator"], required: true },
   displayName: { type: String },
   userName: { type: String },
@@ -24,4 +24,4 @@ const ProfileSettingsSchema = new mongoose.Schema({
   details: { type: mongoose.Schema.Types.Mixed },
 }, { timestamps: true });
 
-module.exports = mongoose.model('ProfileSettings', ProfileSettingsSchema);
+module.exports = mongoose.model('ProfileSettings', ProfileSettingsSchema,'ProfileSettings');
