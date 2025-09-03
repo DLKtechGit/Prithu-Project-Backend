@@ -58,6 +58,10 @@ const{
 const{
   getUserdetailWithId,
   getAllUserDetails,
+  userSelectCategory,
+  getAllCategories,
+  createAppLanguage,
+  createFeedLanguage,
 }=require('../controllers/userControllers/userDetailController')
 
 const{
@@ -120,13 +124,13 @@ const{
   createCategory,
   // updateCategory,
   deleteCategory,
-  getAllCategories
 }=require('../controllers/adminControllers/adminCatagoryController');
 
-const{
-  addAccount,
-  switchAccount,
-  getActiveAccount,
+const{addAccount,
+  switchToCreator,
+  switchToBusiness,
+  switchToUserAccount,
+  checkAccountStatus,
   getAllAccounts
 }=require('../controllers/accountController');
 
@@ -166,8 +170,10 @@ router.post('/auth/user/reset-password',userPasswordReset) ;
 router.post("/auth/user/logout",userlogOut);
 
 //Fresh Users API EndPoints
-// router.post('/app/language',auth,createLanguage);
-// router.post('/feed/country',auth,createCountry);
+router.post('/app/language',auth,createAppLanguage);
+router.get('/get/category',auth,getAllCategories);
+router.post('/user/select/category',auth,userSelectCategory);
+router.post('/feed/language',auth,createFeedLanguage);
 
 //User Feed Actions
 router.post('/user/feed/like',likeFeed);
@@ -247,8 +253,6 @@ router.get("/admin/users/status",getUserStatus);
 // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
 //Admin Creator API Endpoints
-router.get('/admin/getall/creators',getAllCreatorDetails);
-router.get('/admin/get/creator/:id',getCreatorDetailWithId);
 // router.get("/admin/creators/status",getUserStatus);
 // router.get('/admin/creators/status',getCreatorDetailWithId);
 
@@ -275,8 +279,9 @@ router.get('/getall/subscriptions', getAllSubscriptionPlans);
 
 //Account API EndPoints
 router.post('/account/add',auth,addAccount); //Send Token
-router.post('/account/switch',auth,switchAccount); //Send Token
-router.get('/account/active',auth,getActiveAccount); //Send Token
-router.get('/account/all',auth,getAllAccounts); //Send Token
+router.post('/account/switch/creator',auth,switchToCreator); //Send Token
+router.post('/account/switch/user',auth,switchToUserAccount); //Send Token
+router.post('/account/status',auth,checkAccountStatus); //Send Token
+
 
 module.exports= router;

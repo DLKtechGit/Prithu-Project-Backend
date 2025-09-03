@@ -18,9 +18,7 @@ const feedsSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  category: [String],
-  contentUrl: String,
-  text: String,
+  category:{type:String, required:true},
 
   createdByAccount: { 
     type: mongoose.Schema.Types.ObjectId,

@@ -12,87 +12,131 @@ const generateToken = (userId, role, accountId = null, userName) => {
 // Add a new account (User → Business/Creator)
 exports.addAccount = async (req, res) => {
   try {
-    const type = req.body.type.charAt(0).toUpperCase() + req.body.type.slice(1).toLowerCase();
-    // const userId = req.body.userId;
-    const userId=req.Id // from auth middleware
+    const userId = req.Id; // from auth middleware
+    const { type } = req.body; // "creator" or "business"
 
-    if (!type || !userId) {
-      return res.status(400).json({ message: "Account type and User ID are required" });
-    }
+    if (!type) return res.status(400).json({ message: "Account type is required" });
 
-    const exists = await Account.findOne({ userId, type });
-    if (exists) return res.status(400).json({ message: `${type} account already exists` });
+    const formattedType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+    
+    // Check if account already exists
+    let account = await Account.findOne({ userId, type: formattedType });
+    if (account) return res.status(400).json({ message: `${formattedType} account already exists` });
 
-    const account = new Account({ userId, type });
+    // Create new account
+    account = new Account({ userId, type: formattedType });
     await account.save();
 
+    // Update user's roles array and activeAccount
     const user = await User.findById(userId);
-    if (!user.roles.includes(type)) user.roles.push(type);
+    if (!user.roles.includes(formattedType)) user.roles.push(formattedType);
     user.activeAccount = account._id;
     await user.save();
 
-    const token = auth(userId, type.toLowerCase(), account._id);
+    // Generate token for the new account
+    const token = generateToken({ userId, role: formattedType, accountId: account._id, userName: user.userName });
 
-    res.status(201).json({ message: `${type} account created`, account, token });
+    res.status(201).json({ message: `${formattedType} account created`, account, token });
   } catch (err) {
     console.error("AddAccount Error:", err);
     res.status(500).json({ message: "Error creating account", error: err.message });
   }
-}
+};
 
 
 
-// Switch active account
-exports.switchAccount = async (req, res) => {
+exports.switchToCreator = async (req, res) => {
   try {
-    const  accountId = req.accountId // from auth middleware
-    const userId = req.Id; // from auth middleware
+    const userId = req.Id;
 
-    if (!userId || !accountId) return res.status(400).json({ message: "User ID and Account ID are required" });
+    let account = await Account.findOne({ userId, type: "Creator" });
+    if (!account) return res.status(404).json({ message: "Creator account not found" });
 
-    const account = await Account.findOne({ _id: accountId, userId });
-    if (!account) return res.status(404).json({ message: "Account not found" });
-
+    // Update activeAccount
     const user = await User.findById(userId);
     user.activeAccount = account._id;
     await user.save();
 
-    const token = generateToken(userId, account.type.toLowerCase(), account._id);
+    const token = generateToken({ userId, role: "Creator", accountId: account._id, userName: user.userName });
 
-    res.status(200).json({ message: "Switched account", activeAccount: account, token });
+    res.status(200).json({ message: "Switched to Creator account", account, token });
   } catch (err) {
-    console.error("SwitchAccount Error:", err);
+    console.error("SwitchToCreator Error:", err);
     res.status(500).json({ message: "Error switching account", error: err.message });
   }
-}
-
-
-// Get currently active account
-exports.getActiveAccount = async (req, res) => {
-  try {
-    const userId = req.Id; // from auth middleware
-    const user = await User.findById(userId).populate("activeAccount");
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.status(200).json({ activeAccount: user.activeAccount });
-  } catch (err) {
-    console.error("GetActiveAccount Error:", err);
-    res.status(500).json({ message: "Error fetching active account", error: err.message });
-  }
 };
 
 
 
-// Get all accounts for a user
-exports.getAllAccounts = async (req, res) => {
+exports.switchToUserAccount = async (req, res) => {
   try {
-    const userId = req.Id; // from auth middleware
-    const accounts = await Account.find({ userId });
-    res.status(200).json({ accounts });
+    const userId = req.Id;
+
+    // Clear activeAccount
+    await User.findByIdAndUpdate(userId, { activeAccount: null });
+
+    // Generate user token
+    const token = generateToken({
+      userId,
+      role: "User",
+    });
+
+    return res.status(200).json({
+      message: "Switched back to User account",
+      token,
+    });
   } catch (err) {
-    console.error("GetAllAccounts Error:", err);
-    res.status(500).json({ message: "Error fetching accounts", error: err.message });
+    console.error("switchToUserAccount Error:", err);
+    res.status(500).json({ message: "Error switching to user account", error: err.message });
   }
 };
+
+// ✅ Check account status (for frontend button logic)
+// Controller
+exports.checkAccountStatus = async (req, res) => {
+  try {
+    const userId = req.Id; // from auth middleware
+
+    const creatorAccount = await Account.findOne({ userId, type: "Creator" });
+
+    if (!creatorAccount) {
+      return res.status(404).json({ message: "Creator account not found" });
+    }
+
+    return res.status(200).json({ 
+      message: "Creator account exists",
+      account: creatorAccount 
+    });
+  } catch (err) {
+    console.error("CheckCreatorAccount Error:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+// // ✅ Get all accounts linked to user
+// exports.getAllAccounts = async (req, res) => {
+//   try {
+//     const userId = req.Id;
+
+//     const user = await User.findById(userId).populate("activeAccount");
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     const accounts = await Account.find({ userId });
+
+//     return res.status(200).json({
+//       activeAccount: user.activeAccount,
+//       accounts,
+//     });
+//   } catch (err) {
+//     console.error("getAllAccounts Error:", err);
+//     res.status(500).json({ message: "Error fetching accounts", error: err.message });
+//   }
+// };
+
+
+
+// exports.switchToBusiness = async (req, res) => {
+
+
 

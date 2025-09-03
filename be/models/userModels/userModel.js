@@ -16,12 +16,16 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
 
-    // Account roles
-    roles: [{ type: String, enum: ["User", "Business", "Creator"] }],
+    // Roles the user owns (e.g., ["User", "Creator"])
+    roles: [{ type: String, enum: ["User", "Business", "Creator"], default: ["User"] }],
 
+    // Currently active account reference
     activeAccount: { type: mongoose.Schema.Types.ObjectId, ref: "Account" },
 
-    // Role-specific profile data
+    // Keep track of all accounts created by this user
+    accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Account" }], // ✅ NEW
+
+    // Role-specific profile data (optional, since Account schema will hold most info)
     userProfile: { type: mongoose.Schema.Types.ObjectId, ref: "UserProfile" },
     creatorProfile: { type: mongoose.Schema.Types.ObjectId, ref: "CreatorProfile" },
     businessProfile: { type: mongoose.Schema.Types.ObjectId, ref: "BusinessProfile" },
@@ -35,20 +39,9 @@ const UserSchema = new mongoose.Schema(
     referralCount: { type: Number, default: 0 },
 
     // Preferences
-    websiteLanguage: { type: String, default: "en" },
+    appLanguage: { type: String, default: "en" },
     feedLanguage: { type: String, default: "en" },
-    interests: { type: [String], default: [] },
-
-    // Feed interactions
-    likedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
-    downloadedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
-    savedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
-    viewedFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
-    totalFeedsWatchDuration: { type: Number, default: 0 },
-    commentFeeds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Feeds" }],
-
-    // Following
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    categories: { type: [String], default: [] },
 
     // Devices & session
     devices: { type: [DeviceSchema], default: [] },
@@ -74,6 +67,7 @@ const UserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 
 
 
