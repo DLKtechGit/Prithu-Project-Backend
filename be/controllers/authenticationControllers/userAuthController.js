@@ -90,7 +90,6 @@ exports.createNewUser = async (req, res) => {
     return res.status(201).json({
       message: "User registered successfully",
       referralCode: referralCodeGenerated,
-      account,
     });
 
   } catch (error) {

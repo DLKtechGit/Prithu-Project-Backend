@@ -278,10 +278,10 @@ router.get('/getall/subscriptions', getAllSubscriptionPlans);
 
 
 //Account API EndPoints
-router.post('/account/add',auth,addAccount); //Send Token
+router.post('/account/add',addAccount); //Send Token
 router.post('/account/switch/creator',auth,switchToCreator); //Send Token
 router.post('/account/switch/user',auth,switchToUserAccount); //Send Token
-router.post('/account/status',auth,checkAccountStatus); //Send Token
+router.post('/account/status',checkAccountStatus); //Send Token
 
 
 module.exports= router;
