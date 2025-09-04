@@ -4,113 +4,169 @@ const { getVideoDurationInSeconds } = require('get-video-duration');
 const fs = require('fs');
 const Tags = require('../../models/categorySchema');
 const path =require ('path');
+const Categories = require('../../models/categorySchema');
+
+
 
 exports.adminFeedUpload = async (req, res) => {
-  try {
-    const adminRole = req.role;
 
-    if (!adminRole) {
-      return res.status(400).json({ message: "Admin role is required" });
+  try {
+     const userId = req.Id || req.body.userId;      // optional fallback
+    //  const userId = req.body.userId;
+     if (!userId) {
+       return res.status(400).json({ message: "User ID is required" });
+     }
+     const userRole= await Admin.findById(userId).select('role');
+     if(!userRole || userRole.role !=='Admin'){
+       return res.status(403).json({ message: "Only Admins can upload feeds" });
+     }
+    const { language, category, type } = req.body;
+ 
+    if (!userId) {
+
+      return res.status(400).json({ message: "User ID is required" });
+
     }
 
-    // Construct file URL
-    const fileUrl = `http://192.168.1.77:5000/uploads/${
-      req.file.mimetype.startsWith("video/") ? "videos" : "images"
-    }/${req.file.filename}`;
- 
-    const { language, category, type, tags } = req.body;
+    if (!language || !category || !type) {
 
-    if (!language || !category || !type || !tags) {
-      return res.status(400).json({ message: "Language, category, and type and Tag required" });
+      return res
+
+        .status(400)
+
+        .json({ message: "Language, type, and category are required" });
+
     }
 
     if (!req.file) {
+
       return res.status(400).json({ message: "No file uploaded" });
+
     }
  
     const newFileName = path.basename(req.file.path);
-
-// Check if feed with same basename exists
-const existFeed = await Feed.findOne({
-  contentUrl: { $regex: `${newFileName}$` }, // match ending with same filename
-});
-
-if (existFeed) {
-  return res
-    .status(400)
-    .json({ message: "The file has already been uploaded" });
-}
  
-    // Handle video duration check
+    // Check if feed with same basename exists
+
+    const existFeed = await Feed.findOne({
+
+      contentUrl: { $regex: `${newFileName}$` },
+
+    });
+
+    if (existFeed) {
+
+      return res
+
+        .status(400)
+
+        .json({ message: "The file has already been uploaded" });
+
+    }
+ 
+    // Handle video duration
+
     let videoDuration = null;
+
     if (type === "video" && req.file.mimetype.startsWith("video/")) {
+
       videoDuration = await getVideoDurationInSeconds(req.file.path);
+
       if (videoDuration >= 90.0) {
+
         return res
+
           .status(400)
+
           .json({ message: "Upload video below 90 seconds" });
+
       }
+
     }
  
-    // ✅ Parse tags properly
-    let tagParse = [];
-    if (typeof tags === "string") {
-      try {
-        // Try JSON.parse first
-        tagParse = JSON.parse(tags);
-        if (!Array.isArray(tagParse)) {
-          throw new Error("Parsed tags is not an array");
-        }
-      } catch (e) {
-        // If not JSON, try comma separated
-        tagParse = tags.split(",").map((t) => t.trim());
-      }
-    } else if (Array.isArray(tags)) {
-      tagParse = tags;
-    }
+    // Capitalize category name
+
+    const formattedCategory =
+
+      category.charAt(0).toUpperCase() + category.slice(1);
  
     // Save new feed
+
     const newFeed = new Feed({
+
       type,
+
       language,
-      tags: tagParse, // ✅ always array
-      category,
+
+      category: formattedCategory, // ✅ single category
+
       duration: videoDuration,
-      createdByRole: adminRole,
+
+      createdByAccount: userId,
+
       contentUrl: req.file.path,
+      
+      roleRef: userRole.role, // from fetched user role
+
     });
+
     await newFeed.save();
  
-    // Save/update tags collection
-    for (const tagName of tagParse) {
-      let tag = await Tags.findOne({ name: tagName });
-      if (tag) {
-        await Tags.findOneAndUpdate(
-          { name: tagName },
-          { $addToSet: { feedIds: newFeed._id } }
-        );
-      } else {
-        tag = new Tags({
-          name: tagName,
-          feedIds: [newFeed._id],
-        });
-        await tag.save();
-      }
+    // Update/create category with feed reference
+
+    let cat = await Categories.findOne({ name: formattedCategory });
+
+    if (cat) {
+
+      await Categories.findOneAndUpdate(
+
+        { name: formattedCategory },
+
+        { $addToSet: { feedId: newFeed._id } }
+
+      );
+
+    } else {
+
+      cat = new Categories({
+
+        name: formattedCategory,
+
+        feedId: [newFeed._id],
+
+      });
+
+      await cat.save();
+
     }
  
-    // Update creator with feed reference
-    await Admin.findByIdAndUpdate(
-      Admin,
+    // Update user with feed reference
+
+    await User.findByIdAndUpdate(
+
+      userId,
+
       { $push: { feeds: newFeed._id } },
+
       { new: true }
+
     );
  
     return res.status(201).json({
+
       message: "Feed created successfully",
+
       feed: newFeed,
+
     });
+
   } catch (error) {
+
     console.error("Error creating feed:", error);
+
     return res.status(500).json({ message: "Server error" });
+
   }
+
 };
+ 
