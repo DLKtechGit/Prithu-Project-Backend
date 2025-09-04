@@ -6,13 +6,14 @@ const path =require ('path');
 const Account=require("../../models/accountSchemaModel");
 const {feedTimeCalculator}=require("../../middlewares/feedTimeCalculator");
 const {getActiveCreatorAccount}=require("../../middlewares/creatorAccountactiveStatus");
+const Categories=require('../../models/categorySchema');
 
 
-
-
+ 
+ 
 exports.creatorFeedUpload = async (req, res) => {
   try {
-    const userId = req.Id;
+    const userId = req.Id || req.body.userId;
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
@@ -21,7 +22,6 @@ exports.creatorFeedUpload = async (req, res) => {
     if (!activeAccount) {
       return res.status(403).json({ message: "Active Creator account required to upload feed" });
     }
-    const creatorAccountId = activeAccount._id;
 
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -30,11 +30,8 @@ exports.creatorFeedUpload = async (req, res) => {
       return res.status(400).json({ message: "Language, category, and type are required" });
     }
 
-    // Validate category exists
-    const categoryExist = await Categories.findById(category);
-    if (!categoryExist) {
-      return res.status(400).json({ message: "Category not found" });
-    }
+    // Capitalize first letter of category
+    const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
 
     // Prevent duplicate upload
     const newFileName = path.basename(req.file.path);
@@ -50,33 +47,40 @@ exports.creatorFeedUpload = async (req, res) => {
       }
     }
 
-    // Save feed
+    // Save feed with formatted category name
     const newFeed = new Feed({
       type,
       language,
-      category, // single category reference
+      category: formattedCategory, // string with first letter capital
       duration: videoDuration,
-      createdByAccount: creatorAccountId,
+      createdByAccount: activeAccount._id,
       contentUrl: req.file.path,
     });
     await newFeed.save();
 
-    // Push feed reference to category
-    await Categories.findByIdAndUpdate(category, { $push: { feedIds: newFeed._id } });
+    // Check if category exists (case-insensitive)
+    let categoryDoc = await Categories.findOne({
+      name: { $regex: `^${formattedCategory}$`, $options: "i" },
+    });
 
-    // Update active account with feed reference
-    await Account.findByIdAndUpdate(creatorAccountId, { $push: { feeds: newFeed._id } });
+    if (categoryDoc) {
+      // Category exists → push feed ID
+      await Categories.findByIdAndUpdate(categoryDoc._id, { $push: { feedIds: newFeed._id } });
+    } else {
+      // Category doesn't exist → create new category with feed ID
+      const newCategory = new Categories({
+        name: formattedCategory,
+        feedIds: [newFeed._id],
+      });
+      await newCategory.save();
+    }
 
     return res.status(201).json({ message: "Feed created successfully", feed: newFeed });
   } catch (error) {
     console.error("Error creating feed:", error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
- 
- 
-
 
 
 
@@ -110,31 +114,39 @@ exports.creatorFeedDelete = async (req, res) => {
       return res.status(404).json({ message: "Feed not found" });
     }
 
-    if (feed.createdBy.toString() !== creatorId.toString()) {
+    // ✅ Check creator ownership
+    if (feed.createdByAccount.toString() !== creatorId.toString()) {
       await session.abortTransaction();
       return res.status(403).json({ message: "Unauthorized to delete this feed" });
     }
 
+    // Delete feed
     await Feed.findByIdAndDelete(feedId).session(session);
 
+    // Remove feed from creator account
     await Account.findByIdAndUpdate(
       creatorId,
       { $pull: { feeds: feedId } },
       { new: true, session }
     );
 
-    await Tags.updateMany(
+    // Remove feed from categories
+    await Category.updateMany(
       { feedIds: feedId },
       { $pull: { feedIds: feedId } },
       { session }
     );
-    await Tags.deleteMany({ feedIds: { $size: 0 } }).session(session);
+
+    // Optional: delete empty categories
+    await Category.deleteMany({ feedIds: { $size: 0 } }).session(session);
 
     await session.commitTransaction();
     session.endSession();
 
+    // Delete file from uploads
     if (feed.contentUrl) {
-      const filePath = path.join(__dirname, "../uploads", feed.contentUrl);
+      const folder = feed.type === "video" ? "videos" : "images";
+      const filePath = path.join(__dirname, "../uploads", folder, path.basename(feed.contentUrl));
       fs.unlink(filePath, (err) => {
         if (err) console.error("Failed to delete file:", err);
       });
@@ -152,12 +164,14 @@ exports.creatorFeedDelete = async (req, res) => {
 
 
 
+
 exports.getCreatorFeeds = async (req, res) => {
   try {
     const userId = req.Id;
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
+
     const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
       return res
@@ -166,11 +180,14 @@ exports.getCreatorFeeds = async (req, res) => {
     }
     const creatorId = activeAccount._id;
 
-    const feeds = await Feed.find({ createdBy: creatorId }).sort({ createdAt: -1 });
+    // ✅ Fetch feeds created by this creator account
+    const feeds = await Feed.find({ createdByAccount: creatorId }).sort({ createdAt: -1 });
+
     if (!feeds || feeds.length === 0) {
       return res.status(404).json({ message: "No feeds found for this creator" });
     }
 
+    // ✅ Add timeAgo property
     const feedsWithTimeAgo = feeds.map((feed) => ({
       ...feed.toObject(),
       timeAgo: feedTimeCalculator(feed.createdAt),
@@ -191,12 +208,14 @@ exports.getCreatorFeeds = async (req, res) => {
 
 
 
+
 exports.creatorFeedScheduleUpload = async (req, res) => {
   try {
     const userId = req.Id;
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
+
     const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
       return res
@@ -209,16 +228,12 @@ exports.creatorFeedScheduleUpload = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const fileUrl = `http://192.168.1.77:5000/uploads/${
-      req.file.mimetype.startsWith("video/") ? "videos" : "images"
-    }/${req.file.filename}`;
+    const { language, category, type, scheduledAt } = req.body;
 
-    const { language, category, type, tags, scheduledAt } = req.body;
-
-    if (!language || !category || !type || !tags) {
+    if (!language || !category || !type) {
       return res
         .status(400)
-        .json({ message: "Language, category, type, and tags required" });
+        .json({ message: "Language, category, and type required" });
     }
 
     const newFileName = path.basename(req.file.path);
@@ -237,19 +252,6 @@ exports.creatorFeedScheduleUpload = async (req, res) => {
       }
     }
 
-    // Parse tags
-    let tagParse = [];
-    if (typeof tags === "string") {
-      try {
-        tagParse = JSON.parse(tags);
-        if (!Array.isArray(tagParse)) throw new Error();
-      } catch {
-        tagParse = tags.split(",").map((t) => t.trim());
-      }
-    } else if (Array.isArray(tags)) {
-      tagParse = tags;
-    }
-
     // Parse scheduledAt
     let scheduleDate = null;
     if (scheduledAt) {
@@ -259,39 +261,44 @@ exports.creatorFeedScheduleUpload = async (req, res) => {
       }
     }
 
+    // ✅ Capitalize first letter of category
+    const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+
+    // Create feed
     const newFeed = new Feed({
       type,
       language,
-      tags: tagParse,
-      category,
+      category: formattedCategory,
       duration: videoDuration,
-      createdBy: creatorId,
+      createdByAccount: creatorId,
       contentUrl: req.file.path,
       scheduledAt: scheduleDate,
       isPosted: scheduleDate ? false : true,
     });
     await newFeed.save();
 
-    if (!scheduleDate) {
-      for (const tagName of tagParse) {
-        let tag = await Tags.findOne({ name: tagName });
-        if (tag) {
-          await Tags.findOneAndUpdate(
-            { name: tagName },
-            { $addToSet: { feedIds: newFeed._id } }
-          );
-        } else {
-          tag = new Tags({ name: tagName, feedIds: [newFeed._id] });
-          await tag.save();
-        }
-      }
+    // ✅ Handle Category collection
+    let categoryDoc = await Category.findOne({
+      name: { $regex: new RegExp(`^${formattedCategory}$`, "i") },
+    });
+
+    if (categoryDoc) {
+      await Category.findByIdAndUpdate(categoryDoc._id, {
+        $addToSet: { feedIds: newFeed._id },
+      });
+    } else {
+      categoryDoc = new Category({
+        name: formattedCategory,
+        feedIds: [newFeed._id],
+      });
+      await categoryDoc.save();
     }
 
     await Account.findByIdAndUpdate(creatorId, { $push: { feeds: newFeed._id } });
 
     return res.status(201).json({
-      message: scheduledAt
-        ? "Feed scheduled successfully (tags will activate when posted)"
+      message: scheduleDate
+        ? "Feed scheduled successfully (category will update when posted)"
         : "Feed created successfully",
       feed: newFeed,
     });
@@ -300,6 +307,7 @@ exports.creatorFeedScheduleUpload = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 

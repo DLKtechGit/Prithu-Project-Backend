@@ -8,7 +8,7 @@ const categorySchema = new mongoose.Schema({
     trim: true
   },
   
-  feedIds:[{type:mongoose.Schema.Types.ObjectId,ref:'Feeds'}],
+  feedIds:[{type:mongoose.Schema.Types.ObjectId,ref:'Feed'}],
   
   createdAt: {
     type: Date,

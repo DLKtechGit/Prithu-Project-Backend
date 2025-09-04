@@ -8,4 +8,4 @@ const NotificationSchema = new mongoose.Schema({
   seen: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
-export default mongoose.model("Notification", NotificationSchema,"Notification");
+export default mongoose.model("Notification", NotificationSchema,"Notifications");

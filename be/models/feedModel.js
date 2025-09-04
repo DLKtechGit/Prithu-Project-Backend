@@ -1,30 +1,26 @@
 const mongoose = require('mongoose');
 
-const feedsSchema = new mongoose.Schema({
-
+const feedSchema = new mongoose.Schema({
   type: { 
     type: String, 
     enum: ['image', 'video'], 
     required: true 
   },
 
-  contentUrlType: {
-    type: String,
-    enum: ['image', 'video'],
-    required: true
-  },
-
   language: { 
     type: String, 
     required: true 
   },
-  category:{type:String, required:true},
+
+  category: { type: String, required: true },
 
   createdByAccount: { 
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Account',
+    ref: 'Account',   // ✅ must match Account model name
     required: true
   },
+
+  contentUrl: { type: String, required: true },
 
   // Timestamp of creation
   createdAt: { 
@@ -57,4 +53,4 @@ const feedsSchema = new mongoose.Schema({
 // feedsSchema.index({ duration: 1 });
 // feedsSchema.index({ totalWatchTime: 1 });
 
-module.exports = mongoose.model('Feeds', feedsSchema, 'Feeds');
+module.exports = mongoose.model('Feed', feedSchema, 'Feeds');

@@ -28,62 +28,77 @@ exports.validateUserProfileUpdate = [
 // Update profile controller
 exports.userProfileDetailUpdate = async (req, res) => {
   try {
-    let { userId, accountId, userName } = req.body;
-    let roleFromBody = req.body.role; // used only if userId
+    const userId = req.Id || req.body.userId;
+    const accountId = req.body.accountId;
 
-    // ✅ Rule: Either userId or accountId required
+    //  Require either userId or accountId
     if (!userId && !accountId) {
-      return res.status(400).json({ message: "Either userId or accountId is required" });
+      return res
+        .status(400)
+        .json({ message: "Either userId or accountId is required" });
     }
 
-    // ❌ Reject if both are provided
+    //  Reject if both are provided
     if (userId && accountId) {
-      return res.status(400).json({ message: "Provide either userId or accountId, not both" });
+      return res
+        .status(400)
+        .json({ message: "Provide either userId or accountId, not both" });
     }
 
-    // ✅ Input validation
+    //  Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ message: "Validation failed", errors: errors.array() });
+      return res
+        .status(400)
+        .json({ message: "Validation failed", errors: errors.array() });
     }
 
-    // Allowed fields (exclude role here, role handled separately)
+    //  Allowed profile fields
     const allowedFields = [
-      "phoneNumber","bio","displayName","dateOfBirth","maritalStatus",
-      "theme","language","timezone","details","notifications","privacy"
+      "phoneNumber",
+      "bio",
+      "displayName",
+      "dateOfBirth",
+      "maritalStatus",
+      "theme",
+      "language",
+      "timezone",
+      "details",
+      "notifications",
+      "privacy",
     ];
 
     const updateData = {};
-    allowedFields.forEach(field => {
+    allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) updateData[field] = req.body[field];
     });
 
-    // ✅ Handle profile avatar
+    //  Handle profile avatar
     if (req.file?.path) {
       updateData.profileAvatar = req.file.path;
     }
 
-    if (Object.keys(updateData).length === 0 && !userName && !roleFromBody && !accountId) {
-      return res.status(400).json({ message: "No fields provided for update" });
+    //  Handle userName if provided
+    const userName = req.body.userName;
+
+    if (Object.keys(updateData).length === 0 && !userName) {
+      return res
+        .status(400)
+        .json({ message: "No fields provided for update" });
     }
 
-    // ✅ Separate profile lookups
-    let profile = null;
+    let profile;
 
+    // ---- Case 1: Update by userId ----
     if (userId) {
       profile = await Profile.findOne({ userId });
+
       if (!profile) {
         profile = new Profile({ userId, ...updateData });
       } else {
         Object.assign(profile, updateData);
       }
 
-      // role comes from request body
-      if (roleFromBody) {
-        profile.role = roleFromBody;
-      }
-
-      // handle userName update
       if (userName) {
         const existingUser = await User.findOne({ userName });
         if (existingUser && existingUser._id.toString() !== userId.toString()) {
@@ -94,44 +109,42 @@ exports.userProfileDetailUpdate = async (req, res) => {
       }
     }
 
+    // ---- Case 2: Update by accountId ----
     if (accountId) {
       profile = await Profile.findOne({ accountId });
+
       if (!profile) {
         profile = new Profile({ accountId, ...updateData });
       } else {
         Object.assign(profile, updateData);
       }
 
-      // role comes from account.type
-      const account = await Account.findById(accountId).select("type");
-      if (account?.type) {
-        profile.role = account.type;
-      }
-
-      // handle userName update (only in profile, not User)
       if (userName) {
-        profile.userName = userName;
+        profile.userName = userName; // only in Profile
       }
     }
 
     await profile.save();
 
-    // ✅ If accountId → link profile to account
+    // ✅ Link profile to account if accountId
     if (accountId && profile._id) {
-      await Account.findByIdAndUpdate(accountId, { profileData: profile._id }, { new: true });
+      await Account.findByIdAndUpdate(
+        accountId,
+        { profileData: profile._id },
+        { new: true }
+      );
     }
 
     // ✅ Populate response
     const populatedProfile = await Profile.findById(profile._id).populate({
       path: "accountId",
-      populate: { path: "userId", select: "userName email" }
+      populate: { path: "userId", select: "userName email" },
     });
 
     return res.status(200).json({
       message: "Profile updated successfully",
-      profile: populatedProfile
+      profile: populatedProfile,
     });
-
   } catch (error) {
     console.error("Error in userProfileDetailUpdate:", error);
     return res.status(500).json({ message: "Internal Server Error" });
@@ -145,44 +158,34 @@ exports.userProfileDetailUpdate = async (req, res) => {
 
 
 
+
 // Fetch profile by account ID
 exports.getProfileDetail = async (req, res) => {
   try {
-    const { accountId } = req.body;
+    const userId = req.Id || req.body.userId // comes from auth middleware
 
-    const userId=req.Id
-    
-    console.log("Fetching profile for:", { userId, accountId });
-
-    if (!userId && !accountId) {
-      return res
-        .status(400)
-        .json({ message: "Either userId or accountId is required" });
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
     }
 
-    let profile;
-
-    if (userId) {
-      // Get profile for user
-      profile = await Profile.findOne({ userId });
-    } else if (accountId) {
-      // Get profile for account
-      profile = await Profile.findOne({ accountId })
-    }
+    // Find profile by userId
+    const profile = await Profile.findOne({ userId });
+    const userName = await Profile.findOne({ userId }).populate("userId", "userName");
 
     if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-
     return res.status(200).json({
       profileSetting: profile,
+      userName: userName.userId.userName
     });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
  

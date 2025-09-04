@@ -20,14 +20,16 @@ exports.getAllFeeds = async (req, res) => {
       });
 
     if (!feeds.length) {
-      return res.status(404).json({ message: "Please Add Image file" });
+      return res.status(404).json({ message: "No feeds found" });
     }
 
     const enrichedFeeds = await Promise.all(
-      feeds.map(async feed => {
+      feeds.map(async (feed) => {
         const feedObj = feed.toObject();
 
+        // Creator info
         const account = feed.createdByAccount;
+        
         const profile = account?.profileData;
 
         feedObj.creatorUsername = profile?.userName || "Unknown";
@@ -35,17 +37,26 @@ exports.getAllFeeds = async (req, res) => {
           ? `http://192.168.1.77:5000/uploads/images/${path.basename(profile.profileAvatar)}`
           : "Unknown";
 
-        // count likes and shares
+        // Content URL with folder based on type
+        const folder = feed.type === "video" ? "videos" : "images";
+        feedObj.contentUrlFull = feed.contentUrl
+          ? `http://192.168.1.77:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
+          : null;
+
+        // Category
+        feedObj.category = feed.category || "Uncategorized";
+
+        // Count likes and shares
         feedObj.likesCount = await UserFeedActionInteraction.countDocuments({
           feedId: feed._id,
-          type: "like"
+          type: "like",
         });
         feedObj.shareCount = await UserFeedActionInteraction.countDocuments({
           feedId: feed._id,
-          type: "share"
+          type: "share",
         });
 
-        // time ag
+        // Time ago
         feedObj.timeAgo = feedTimeCalculator(feed.createdAt);
 
         return feedObj;
@@ -54,13 +65,15 @@ exports.getAllFeeds = async (req, res) => {
 
     res.status(200).json({
       message: "Feeds retrieved successfully",
-      feeds: enrichedFeeds
+      feeds: enrichedFeeds,
     });
   } catch (error) {
     console.error("Error in getAllFeeds:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 
 

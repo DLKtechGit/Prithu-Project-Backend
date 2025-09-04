@@ -59,15 +59,14 @@ const{
   getUserdetailWithId,
   getAllUserDetails,
   userSelectCategory,
-  getAllCategories,
   createAppLanguage,
   createFeedLanguage,
 }=require('../controllers/userControllers/userDetailController')
 
 const{
-  getAllTags,
-  getTagsWithId,
-}=require('../controllers/tagsController')
+  getCategoryWithId,
+  getAllCategories,
+}=require('../controllers/categoriesController');
 
 const{
   userProfileDetailUpdate,
@@ -169,61 +168,61 @@ router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
 router.post('/auth/user/reset-password',userPasswordReset) ;
 router.post("/auth/user/logout",userlogOut);
 
-//Fresh Users API EndPoints
+// //Fresh Users API EndPoints
 router.post('/app/language',auth,createAppLanguage);
 router.get('/get/category',auth,getAllCategories);
 router.post('/user/select/category',auth,userSelectCategory);
 router.post('/feed/language',auth,createFeedLanguage);
 
-//User Feed Actions
+// //User Feed Actions
 router.post('/user/feed/like',likeFeed);
 router.post('/user/feed/save',auth,saveFeed);
 router.post('/user/feed/download',auth,downloadFeed);
 router.post('/user/feed/comment',auth,addComment);
 router.post('/user/feed/share',auth,shareFeed);
 
-//User Feed Get Actions
+// //User Feed Get Actions
 router.get('/user/saved/feeds',auth,getUserSavedFeeds);
 router.get('/user/saved/download',auth,getUserDownloadedFeeds);
 
-//User Subscription API EndPoints
+// //User Subscription API EndPoints
 router.post('/user/plan/subscription',auth,subscribePlan); // UserId, PlanId
 router.post('/user/cancel/subscription',auth,cancelSubscription);//UserId, SubscriptionId
 router.get('/user/user/subscriptions',auth,getUserSubscriptionPlanWithId);
 
-//User Follower API EndPoints
+// //User Follower API EndPoints
 router.post('/user/follow/creator',auth,followAccount);
  router.post('/user/unfollow/creator',auth,unfollowAccount);
  router.get('/user/get/followers',auth,getAccountFollowers); 
 
 
-// //Creator Authentication API EndPoints 
-// router.post('/auth/creator/register',createNewCreator);
-// router.post('/auth/creator/login',creatorLogin);
-// router.post('/auth/creator/sent-otp',creatorSendOtp);
-// router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
-// router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
-// router.post('/auth/creator/reset-password',creatorPasswordReset);
+// // //Creator Authentication API EndPoints 
+// // router.post('/auth/creator/register',createNewCreator);
+// // router.post('/auth/creator/login',creatorLogin);
+// // router.post('/auth/creator/sent-otp',creatorSendOtp);
+// // router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
+// // router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
+// // router.post('/auth/creator/reset-password',creatorPasswordReset);
 
-//Creator Feed API Endpoints
-router.post("/creator/feed/upload",auth,upload.single('file'),creatorFeedUpload);
+// //Creator Feed API Endpoints
+router.post("/creator/feed/upload",upload.single('file'),creatorFeedUpload);
 router.post("/creator/feed/schedule/:id",auth,upload.single('file'),creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds',auth,creatorFeedDelete); // userId , feedId
 router.get('/creator/getall/feeds',auth,getCreatorFeeds);
 
-//Creator Follower API EndPoints
+// //Creator Follower API EndPoints
 router.get('/creator/get/followers', getCreatorFollowers);
 
-// // Business Authentication API EndPoints
-// router.post('/auth/business/register',createNewBusinessUser);
-// router.post('/auth/business/login',businessLogin);
-// router.post('/auth/business/sent-otp',businessSendOtp);
-// router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
-// router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
-// router.post('/auth/business/reset-password',businessPasswordReset);
+// // // Business Authentication API EndPoints
+// // router.post('/auth/business/register',createNewBusinessUser);
+// // router.post('/auth/business/login',businessLogin);
+// // router.post('/auth/business/sent-otp',businessSendOtp);
+// // router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
+// // router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
+// // router.post('/auth/business/reset-password',businessPasswordReset);
 
 
-//Admin Authentication API EndPoints
+// //Admin Authentication API EndPoints
 router.post('/auth/admin/register',newAdmin);
 router.post('/auth/admin/login',adminLogin);
 router.post('/auth/admin/sent-otp',adminSendOtp);
@@ -231,54 +230,54 @@ router.post('/auth/exist/admin/verify-otp',existAdminVerifyOtp);
 router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',adminPasswordReset);
 
-//Admin Feed API EndPoints
+// //Admin Feed API EndPoints
 router.post('/admin/feed',auth,upload.single('file'), adminFeedUpload);
 
-//Admin Category API EndPoints
+// //Admin Category API EndPoints
 router.post('/admin/feed/category', createCategory);
 router.delete('/admin/feed/category/:id', deleteCategory);
 router.get('/admin/feed/category', getAllCategories);
 
-//Admin Subscription API EndPoints
+// //Admin Subscription API EndPoints
 router.post('/admin/create/subscription', createPlan); // name, price, durationDays, limits, description, planType, isActive 
 router.put('/admin/update/subscription/:id', updatePlan); // Plan ID
 router.delete('/admin/delete/subscription/:id', deletePlan);// Plan ID
 router.get('/admin/getall/subscriptions', getAllPlans);
 
-//Admin User API EndPoints
+// //Admin User API EndPoints
 router.get('/admin/getall/users',getAllUserDetails);
 router.get('/admin/get/user/:id',getUserdetailWithId);
 router.get("/admin/users/status",getUserStatus);
-// router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
-// router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
+// // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
+// // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
 
-//Admin Creator API Endpoints
-// router.get("/admin/creators/status",getUserStatus);
-// router.get('/admin/creators/status',getCreatorDetailWithId);
+// //Admin Creator API Endpoints
+// // router.get("/admin/creators/status",getUserStatus);
+// // router.get('/admin/creators/status',getCreatorDetailWithId);
 
-//Feeds API EndPoints
+// //Feeds API EndPoints
 router.get('/all/feeds',getAllFeeds)
 router.post('/feeds/watchedbyuser',feedsWatchByUser);
-// router.post('/most/watched/feeds',mostWatchedFeeds);
+// // router.post('/most/watched/feeds',mostWatchedFeeds);
 
 
-//Tags API EndPoints
-router.get('/all/tags',getAllTags)
-router.get('/all/tags/:id',getTagsWithId)
+// //Tags API EndPoints
+router.get('/all/catagories',getAllCategories)
+router.get('/all/catagories/:id',getCategoryWithId)
 
 
 
-//Profile Setting detail with id
+// //Profile Setting detail with id
  router.post('/profile/detail/update',upload.single('file'),userProfileDetailUpdate)
  router.get('/get/profile/detail',getProfileDetail)
 
 
- //Subscription Plan API EndPoints
-router.get('/getall/subscriptions', getAllSubscriptionPlans);
+//  //Subscription Plan API EndPoints
+// router.get('/getall/subscriptions', getAllSubscriptionPlans);
 
 
-//Account API EndPoints
-router.post('/account/add',addAccount); //Send Token
+// //Account API EndPoints
+router.post('/account/add',auth,addAccount); //Send Token
 router.post('/account/switch/creator',auth,switchToCreator); //Send Token
 router.post('/account/switch/user',auth,switchToUserAccount); //Send Token
 router.post('/account/status',checkAccountStatus); //Send Token
