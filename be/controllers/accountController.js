@@ -3,13 +3,6 @@ const User = require('../models/userModels/userModel');
 const jwt = require('jsonwebtoken');
 
 
-// Create a JWT token
-const generateToken = (userId, role, accountId = null, userName) => {
-  const payload = { userId, role, accountId, userName };
-  return jwt.sign(payload, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '7d' });
-};
-
-
 // Add a new account (User → Business/Creator)
 exports.addAccount = async (req, res) => {
   try {

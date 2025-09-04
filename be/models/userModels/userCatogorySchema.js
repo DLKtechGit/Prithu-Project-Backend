@@ -44,5 +44,5 @@ userFeedCategorySchema.pre("save", function (next) {
   next();
 });
 
-module.exports = mongoose.model("UserFeedCategory", userFeedCategorySchema);
+module.exports = mongoose.model("UserFeedCategory", userFeedCategorySchema,"UserFeedCategories");
 // module.exports = mongoose.model('UserFeedCategory', userFeedCategorySchema, 'UserFeedCategory');

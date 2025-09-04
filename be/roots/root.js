@@ -59,13 +59,14 @@ const{
   getUserdetailWithId,
   getAllUserDetails,
   userSelectCategory,
-  createAppLanguage,
-  createFeedLanguage,
+  userAppLanguage,
+  userFeedLanguage,
 }=require('../controllers/userControllers/userDetailController')
 
 const{
   getCategoryWithId,
   getAllCategories,
+  getContentCategories,
 }=require('../controllers/categoriesController');
 
 const{
@@ -120,7 +121,7 @@ const{
 }=require('../controllers/followersControllers.js/followerDetailController');
 
 const{
-  createCategory,
+  adminAddCategory,
   // updateCategory,
   deleteCategory,
 }=require('../controllers/adminControllers/adminCatagoryController');
@@ -169,10 +170,11 @@ router.post('/auth/user/reset-password',userPasswordReset) ;
 router.post("/auth/user/logout",userlogOut);
 
 // //Fresh Users API EndPoints
-router.post('/app/language',auth,createAppLanguage);
-router.get('/get/category',auth,getAllCategories);
-router.post('/user/select/category',auth,userSelectCategory);
-router.post('/feed/language',auth,createFeedLanguage);
+router.post('/app/language',auth,userAppLanguage);
+router.post('/feed/language',auth,userFeedLanguage);
+router.get('/get/category',getAllCategories);
+router.post('/user/select/category',userSelectCategory);
+
 
 // //User Feed Actions
 router.post('/user/feed/like',likeFeed);
@@ -206,9 +208,10 @@ router.post('/user/follow/creator',auth,followAccount);
 
 // //Creator Feed API Endpoints
 router.post("/creator/feed/upload",upload.single('file'),creatorFeedUpload);
-router.post("/creator/feed/schedule/:id",auth,upload.single('file'),creatorFeedScheduleUpload);
+router.post("/creator/feed/schedule",auth,upload.single('file'),creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds',auth,creatorFeedDelete); // userId , feedId
 router.get('/creator/getall/feeds',auth,getCreatorFeeds);
+router.get('/creator/get/feed/category',getContentCategories);
 
 // //Creator Follower API EndPoints
 router.get('/creator/get/followers', getCreatorFollowers);
@@ -234,8 +237,8 @@ router.post('/auth/admin/reset-password',adminPasswordReset);
 router.post('/admin/feed',auth,upload.single('file'), adminFeedUpload);
 
 // //Admin Category API EndPoints
-router.post('/admin/feed/category', createCategory);
-router.delete('/admin/feed/category/:id', deleteCategory);
+router.post('/admin/feed/category',adminAddCategory);
+router.delete('/admin/feed/category', deleteCategory);
 router.get('/admin/feed/category', getAllCategories);
 
 // //Admin Subscription API EndPoints
@@ -262,14 +265,14 @@ router.post('/feeds/watchedbyuser',feedsWatchByUser);
 
 
 // //Tags API EndPoints
-router.get('/all/catagories',getAllCategories)
+router.get('/all/catagories',getContentCategories)
 router.get('/all/catagories/:id',getCategoryWithId)
 
 
 
 // //Profile Setting detail with id
- router.post('/profile/detail/update',upload.single('file'),userProfileDetailUpdate)
- router.get('/get/profile/detail',getProfileDetail)
+ router.post('/profile/detail/update',auth,upload.single('file'),userProfileDetailUpdate)
+ router.get('/get/profile/detail',auth,getProfileDetail)
 
 
 //  //Subscription Plan API EndPoints
@@ -280,7 +283,7 @@ router.get('/all/catagories/:id',getCategoryWithId)
 router.post('/account/add',auth,addAccount); //Send Token
 router.post('/account/switch/creator',auth,switchToCreator); //Send Token
 router.post('/account/switch/user',auth,switchToUserAccount); //Send Token
-router.post('/account/status',checkAccountStatus); //Send Token
+router.post('/account/status',auth,checkAccountStatus); //Send Token
 
 
 module.exports= router;

@@ -14,6 +14,11 @@ const Categories=require('../../models/categorySchema');
 exports.creatorFeedUpload = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
+
+    console.log("req.file",req.file)
+
+    const fileUrl = `http://192.168.1.48:5000/uploads/${req.file.mimetype.startsWith('video/') ? 'videos' : 'images'}/${req.file.filename}`;
+
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
@@ -54,7 +59,7 @@ exports.creatorFeedUpload = async (req, res) => {
       category: formattedCategory, // string with first letter capital
       duration: videoDuration,
       createdByAccount: activeAccount._id,
-      contentUrl: req.file.path,
+      contentUrl: fileUrl,
     });
     await newFeed.save();
 
@@ -210,6 +215,7 @@ exports.getCreatorFeeds = async (req, res) => {
 
 
 exports.creatorFeedScheduleUpload = async (req, res) => {
+  console.log("working")
   try {
     const userId = req.Id;
     if (!userId) {

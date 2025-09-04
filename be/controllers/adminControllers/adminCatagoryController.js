@@ -1,75 +1,82 @@
-const FeedCategory = require('../../models/adminModels/feedCategoryModel');
+const Categories= require('../../models/categorySchema');
 
-exports.createCategory = async (req, res) => {
+
+
+exports.adminAddCategory = async (req, res) => {
   try {
-    let { name } = req.body;
-
-    if (!name || name.trim() === "") {
-      return res.status(400).json({ message: "Category name is required" });
+    const { names } = req.body; // expects a string: "Men, Women, Kids"
+    if (!names || !names.trim()) {
+      return res.status(400).json({ message: "Category names are required" });
     }
 
-    // Trim and format name: first letter capital, rest lowercase
-    name = name.trim();
-    const formattedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    // Split by comma, trim spaces, capitalize first letter
+    const inputCategories = names
+      .split(",")
+      .map(name => name.trim())
+      .filter(name => name) // remove empty strings
+      .map(name => name.charAt(0).toUpperCase() + name.slice(1));
 
-    // Check if category already exists (case-insensitive)
-    const existingCategory = await FeedCategory.findOne({ name: { $regex: `^${formattedName}$`, $options: 'i' } });
-    if (existingCategory) {
-      return res.status(400).json({ message: "Category already exists" });
+    if (!inputCategories.length) {
+      return res.status(400).json({ message: "No valid category names provided" });
     }
 
-    // Create and save new category
-    const newCategory = new FeedCategory({ name: formattedName });
-    await newCategory.save();
+    // Find existing categories in DB
+    const existingCategories = await Categories.find({
+      name: { $in: inputCategories }
+    }).select("name").lean();
 
-    res.status(201).json({ message: "Category created successfully", category: newCategory });
+    const existingNames = existingCategories.map(cat => cat.name);
+
+    // Filter out duplicates
+    const newCategories = inputCategories.filter(name => !existingNames.includes(name));
+
+    if (!newCategories.length) {
+      return res.status(409).json({ message: "All categories already exist" });
+    }
+
+    // Insert new categories
+    const createdCategories = await Categories.insertMany(
+      newCategories.map(name => ({ name }))
+    );
+
+    return res.status(201).json({
+      message: "Categories added successfully",
+      addedCategories: createdCategories.map(cat => ({
+        id: cat._id,
+        name: cat.name
+      }))
+    });
   } catch (error) {
-    console.error("Error creating category:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error adding categories:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-
-// exports.updateCategory = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { name } = req.body;
-
-//     const updatedCategory = await FeedCategory.findByIdAndUpdate(id, { name }, { new: true });
-//     if (!updatedCategory) {
-//       return res.status(404).json({ message: 'Category not found' });
-//     }
-
-//     res.status(200).json({ message: 'Category updated successfully', category: updatedCategory });
-//   } catch (error) {
-//     console.error('Error updating category:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// };
 
 exports.deleteCategory = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.body; // expects category ID in body
 
-    const deletedCategory = await FeedCategory.findByIdAndDelete(id);
-    if (!deletedCategory) {
-      return res.status(404).json({ message: 'Category not found' });
+    if (!id) {
+      return res.status(400).json({ message: "Category ID is required" });
     }
 
-    res.status(200).json({ message: 'Category deleted successfully' });
+    // Check if category exists
+    const category = await Categories.findById(id);
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // Delete the category
+    await Categories.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      message: "Category deleted successfully",
+      deletedCategory: { id: category._id, name: category.name }
+    });
   } catch (error) {
-    console.error('Error deleting category:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Error deleting category:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-
-exports.getAllCategories = async (req, res) => {
-  try {
-    const categories = await FeedCategory.find();
-    res.status(200).json( categories );
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};

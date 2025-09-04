@@ -29,6 +29,7 @@ exports.validateUserProfileUpdate = [
 exports.userProfileDetailUpdate = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
+    console.log("userId",userId)
     const accountId = req.body.accountId;
 
     //  Require either userId or accountId

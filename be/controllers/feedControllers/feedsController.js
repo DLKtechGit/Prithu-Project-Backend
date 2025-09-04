@@ -1,67 +1,104 @@
 const Feed = require('../../models/feedModel');
 const User = require('../../models/userModels/userModel');
 const Creator = require('../../models/creatorModel');
-const Account = require('../../models/accountSchemaModel');
 const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
 const UserFeedActionInteraction =require('../../models/userFeedInterSectionModel.js');
 const fs = require('fs');
 const path=require('path');
 
+
+
+
 exports.getAllFeeds = async (req, res) => {
   try {
+    const userId = req.Id || req.body.userId;      // optional fallback
+    const accountId = req.accountId || req.body.accountId || null;  // primary if exists
+
     const feeds = await Feed.find()
       .sort({ createdAt: -1 })
       .populate({
-        path: "createdByAccount", // Feed -> Account
-        populate: {
-          path: "profileData", // Account -> Profile
-          select: "userName profileAvatar" // only fetch these fields
-        }
-      });
+        path: "createdByAccount",
+        populate: [
+          { path: "userId", select: "userName" },
+          { path: "profileData", select: "profileAvatar" }
+        ]
+      })
+      .select("type contentUrl category createdAt");
 
     if (!feeds.length) {
       return res.status(404).json({ message: "No feeds found" });
     }
 
-    const enrichedFeeds = await Promise.all(
-      feeds.map(async (feed) => {
-        const feedObj = feed.toObject();
+    const feedIds = feeds.map(feed => feed._id);
 
-        // Creator info
-        const account = feed.createdByAccount;
-        
-        const profile = account?.profileData;
+    // Aggregate interactions
+    const interactions = await UserFeedActionInteraction.aggregate([
+      { $match: { feedId: { $in: feedIds } } },
+      {
+        $group: {
+          _id: { feedId: "$feedId", type: "$type" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-        feedObj.creatorUsername = profile?.userName || "Unknown";
-        feedObj.creatorAvatar = profile?.profileAvatar
+    const interactionMap = {};
+    interactions.forEach(i => {
+      const fid = i._id.feedId.toString();
+      if (!interactionMap[fid]) {
+        interactionMap[fid] = { like: 0, share: 0, comment: 0, download: 0 };
+      }
+      interactionMap[fid][i._id.type] = i.count;
+    });
+
+    // Determine which ID to use for likes
+    const likeQuery = { feedId: { $in: feedIds }, type: "like" };
+    if (accountId) {
+      likeQuery.accountId = mongoose.Types.ObjectId(accountId);
+    } else if (userId) {
+      likeQuery.userId = mongoose.Types.ObjectId(userId);
+    }
+
+    const likedFeeds = await UserFeedActionInteraction.find(likeQuery)
+      .select("feedId -_id")
+      .lean();
+
+    const likedFeedIds = likedFeeds.map(like => like.feedId.toString());
+
+    // Build response
+    const enrichedFeeds = feeds.map(feed => {
+      const account = feed.createdByAccount;
+      const user = account?.userId;
+      const profile = account?.profileData;
+
+      const folder = feed.type === "video" ? "videos" : "images";
+      const contentUrlFull = feed.contentUrl
+        ? `http://192.168.1.77:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
+        : null;
+
+      const counts = interactionMap[feed._id.toString()] || {
+        like: 0,
+        share: 0,
+        comment: 0,
+        download: 0,
+      };
+
+      return {
+        feedId: feed._id,
+        userName: user?.userName || "Unknown",
+        profileAvatar: profile?.profileAvatar
           ? `http://192.168.1.77:5000/uploads/images/${path.basename(profile.profileAvatar)}`
-          : "Unknown";
-
-        // Content URL with folder based on type
-        const folder = feed.type === "video" ? "videos" : "images";
-        feedObj.contentUrlFull = feed.contentUrl
-          ? `http://192.168.1.77:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
-          : null;
-
-        // Category
-        feedObj.category = feed.category || "Uncategorized";
-
-        // Count likes and shares
-        feedObj.likesCount = await UserFeedActionInteraction.countDocuments({
-          feedId: feed._id,
-          type: "like",
-        });
-        feedObj.shareCount = await UserFeedActionInteraction.countDocuments({
-          feedId: feed._id,
-          type: "share",
-        });
-
-        // Time ago
-        feedObj.timeAgo = feedTimeCalculator(feed.createdAt);
-
-        return feedObj;
-      })
-    );
+          : "Unknown",
+        timeAgo: feedTimeCalculator(feed.createdAt),
+        contentUrl: feed.contentUrl,
+        contentUrlFull,
+        likesCount: counts.like,
+        shareCount: counts.share,
+        commentsCount: counts.comment,
+        downloadsCount: counts.download,
+        isLiked: likedFeedIds.includes(feed._id.toString()), // ✅ based on accountId if exists, else userId
+      };
+    });
 
     res.status(200).json({
       message: "Feeds retrieved successfully",
@@ -72,6 +109,10 @@ exports.getAllFeeds = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+
+
 
 
 

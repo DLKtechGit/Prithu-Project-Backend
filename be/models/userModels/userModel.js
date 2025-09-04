@@ -16,6 +16,10 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
 
+    appLanguage: { type: String, default: "en" },
+
+    feedLanguage: { type: String, default: "en" },
+
     // Roles the user owns (e.g., ["User", "Creator"])
     roles: [{ type: String, enum: ["User", "Business", "Creator"], default: ["User"] }],
 
