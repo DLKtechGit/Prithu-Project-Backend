@@ -16,8 +16,8 @@ exports.adminFeedUpload = async (req, res) => {
      if (!userId) {
        return res.status(400).json({ message: "User ID is required" });
      }
-     const userRole= await Admin.findById(userId).select('role');
-     if(!userRole || userRole.role !=='Admin'){
+     const userRole= await Admin.findById(userId).select('adminType');
+     if(!userRole || userRole.adminType !=='Admin'){
        return res.status(403).json({ message: "Only Admins can upload feeds" });
      }
     const { language, category, type } = req.body;

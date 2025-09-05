@@ -1,41 +1,54 @@
+const Account = require("../../models/accountSchemaModel");
+const Feed = require("../../models/feedModel");
 
-const Creators = require("../../models/creatorModel")
+exports.getAllCreatorDetails = async (req, res) => {
+  console.log("working");
 
-
-exports.getCreatorDetailWithId = async (req, res) => {
   try {
-    const creatorId = req.params.id; 
-    const creators = await Creators.findById(creatorId); 
-    if (!creators) {
-      return res.status(400).json({ message: "Creator Details not Found" });
+    // Find all accounts and populate user and profileSettings
+    const allCreators = await Account.find()
+      .populate({
+        path: "userId",
+        select: "userName email profileSettings",
+        populate: {
+          path: "profileSettings",
+          select:
+            "profileAvatar timeAgo contentUrl contentFullUrl feedId likeCount shareCount comments downloadCount"
+        }
+      })
+      .lean(); // returns plain JS objects
+
+    if (!allCreators || allCreators.length === 0) {
+      return res.status(400).json({ message: "Creators Details not Found" });
     }
 
-    res.status(200).json({ creators });
+    // Map creators and include feed count
+    const creators = await Promise.all(
+      allCreators.map(async (acc) => {
+        const user = acc.userId || {};
+        const profile = user.profileSettings || {};
+
+        // Count feeds created by this account
+        const feedCount = await Feed.countDocuments({ createdByAccount: acc._id });
+
+        return {
+          userName: user.userName || "Unknown",
+          email:user.email,
+          profileAvatar: profile.profileAvatar || "",
+          followers:null,
+          totalFeeds: feedCount
+        };
+      })
+    );
+
+    res.status(200).json({
+      total: creators.length,
+      creators
+    });
   } catch (err) {
-    res.status(500).json({ message: "Cannot Fetch Creator Details", error: err });
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Cannot Fetch Creator Details", error: err });
   }
 };
-
- exports.getAllCreatorDetails=async (req,res)=>
-  
-{
-  console.log('working')
-  try{
-      const allCreators=await Creators.find()
-      if(!allCreators)res.status(400).json({ message: "Creators Details not Found" });
-
-    res.status(200).json({ allCreators });
-  } catch (err) {
-    res.status(500).json({ message: "Cannot Fetch Creator Details", error: err });
-  }
-
-}
-
-
-
-
-
-
-
-
-

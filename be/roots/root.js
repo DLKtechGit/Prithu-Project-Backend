@@ -86,11 +86,23 @@ const {
   likeFeed,
   saveFeed,
   downloadFeed,
-  addComment,
+  postComment,
   getUserSavedFeeds,
   getUserDownloadedFeeds,
   shareFeed,
+  commentLike,
 } = require('../controllers/feedControllers/userActionsFeedController');
+
+
+const {
+creatorlikeFeed,
+creatorsaveFeed,
+creatordownloadFeed,
+creatorshareFeed,
+creatorpostComment,
+creatorpostView,
+creatorcommentLike,
+}=require('../controllers/creatorActionController')
 
 const {
   createPlan,
@@ -176,9 +188,10 @@ router.post('/user/select/category', userSelectCategory);
 
 /* --------------------- User Feed Actions --------------------- */
 router.post('/user/feed/like', likeFeed);
+router.post('/user/comment/like',commentLike);
 router.post('/user/feed/save', auth, saveFeed);
 router.post('/user/feed/download', auth, downloadFeed);
-router.post('/user/feed/comment', auth, addComment);
+router.post('/user/feed/comment', postComment);
 router.post('/user/feed/share', auth, shareFeed);
 
 /* --------------------- User Feed Get Actions --------------------- */
@@ -201,6 +214,14 @@ router.post("/creator/feed/schedule", auth, upload.single('file'), creatorFeedSc
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
 router.get('/creator/getall/feeds', auth, getCreatorFeeds);
 router.get('/creator/get/feed/category', getContentCategories);
+
+/* --------------------- Cretor Feed Actions --------------------- */
+router.post('/creator/feed/like', likeFeed);
+router.post('/creator/comment/like',commentLike);
+router.post('/creator/feed/save', auth, saveFeed);
+router.post('/creator/feed/download', auth, downloadFeed);
+router.post('/creator/feed/comment', postComment);
+router.post('/creator/feed/share', auth, shareFeed);
 
 /* --------------------- Creator Follower API --------------------- */
 router.get('/creator/get/followers', getCreatorFollowers);
@@ -233,9 +254,15 @@ router.get('/admin/get/user/:id', getUserdetailWithId);
 router.get("/admin/users/status", getUserStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
 
+/* --------------------- Admin User API --------------------- */
+router.get('/admin/getall/creators', getAllCreatorDetails);
+// router.get('/admin/get/user/:id', getUserdetailWithId);
+// router.get("/admin/users/status", getUserStatus);
+// router.get("/admin/user/detail/by-date", getUsersByDate);
+
 /* --------------------- Feeds API --------------------- */
-router.get('/all/feeds', getAllFeeds);
-router.post('/feeds/watchedbyuser', feedsWatchByUser);
+ router.post('/all/feeds', getAllFeeds);
+// router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
 /* --------------------- Tags API --------------------- */
 router.get('/all/catagories', getContentCategories);
