@@ -47,7 +47,7 @@ exports.addAccount = async (req, res) => {
  
 exports.switchToCreator = async (req, res) => {
   try {
-    const userId = req.Id;
+    const userId = req.Id || req.body.userId;
     console.log(userId)
  
     let account = await Account.findOne({ userId, type: "Creator" });

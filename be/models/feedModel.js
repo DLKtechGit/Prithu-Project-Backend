@@ -30,4 +30,4 @@ feedSchema.pre("save", function (next) {
   next();
 });
 
-module.exports = mongoose.model("Feed", feedSchema);
+module.exports = mongoose.model("Feed", feedSchema,"Feeds");

@@ -234,7 +234,7 @@ router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
 router.post('/auth/admin/reset-password',adminPasswordReset);
 
 // //Admin Feed API EndPoints
-router.post('/admin/feed',auth,upload.single('file'), adminFeedUpload);
+router.post('/admin/feed',upload.single('file'), adminFeedUpload);
 
 // //Admin Category API EndPoints
 router.post('/admin/feed/category',adminAddCategory);
@@ -271,7 +271,7 @@ router.get('/all/catagories/:id',getCategoryWithId)
 
 
 // //Profile Setting detail with id
- router.post('/profile/detail/update',auth,upload.single('file'),userProfileDetailUpdate)
+ router.post('/profile/detail/update',upload.single('file'),userProfileDetailUpdate)
  router.get('/get/profile/detail',auth,getProfileDetail)
 
 
@@ -281,7 +281,7 @@ router.get('/all/catagories/:id',getCategoryWithId)
 
 // //Account API EndPoints
 router.post('/account/add',auth,addAccount); //Send Token
-router.post('/account/switch/creator',auth,switchToCreator); //Send Token
+router.post('/account/switch/creator',switchToCreator); //Send Token
 router.post('/account/switch/user',auth,switchToUserAccount); //Send Token
 router.post('/account/status',auth,checkAccountStatus); //Send Token
 

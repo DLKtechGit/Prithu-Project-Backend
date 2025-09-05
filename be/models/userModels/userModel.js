@@ -26,6 +26,8 @@ const UserSchema = new mongoose.Schema(
     // Currently active account reference
     activeAccount: { type: mongoose.Schema.Types.ObjectId, ref: "Account" },
 
+    profileSettings:{type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings"},
+
     // Keep track of all accounts created by this user
     accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Account" }], // ✅ NEW
 

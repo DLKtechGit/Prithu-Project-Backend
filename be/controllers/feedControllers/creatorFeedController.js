@@ -13,13 +13,21 @@ const Categories=require('../../models/categorySchema');
  
 exports.creatorFeedUpload = async (req, res) => {
   try {
-    const userId = req.Id || req.body.userId;
+    const accountId = req.accountId || req.body.accountId;
+
+    const creatorRole=req.role  || req.body.role;
+
+    const userId = req.Id || req.body.userId;     // optional fallback
+      console.log("accountId",accountId)
+    const userRole= await Account.findById(accountId).select('type');
+    if(!userRole || userRole.type !=='Creator'){
+      return res.status(403).json({ message: "Only Creators can upload feeds" });
+    }
 
     console.log("req.file",req.file)
 
-    const fileUrl = `http://192.168.1.48:5000/uploads/${req.file.mimetype.startsWith('video/') ? 'videos' : 'images'}/${req.file.filename}`;
 
-    if (!userId) {
+    if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
@@ -59,7 +67,8 @@ exports.creatorFeedUpload = async (req, res) => {
       category: formattedCategory, // string with first letter capital
       duration: videoDuration,
       createdByAccount: activeAccount._id,
-      contentUrl: fileUrl,
+      contentUrl: req.file.path,
+      roleRef: creatorRole, // from fetched user role
     });
     await newFeed.save();
 
@@ -97,8 +106,8 @@ exports.creatorFeedDelete = async (req, res) => {
   session.startTransaction();
 
   try {
-    const userId = req.Id;
-    const activeAccount = await getActiveCreatorAccount(userId);
+    const accountId = req.Id;
+    const activeAccount = await getActiveCreatorAccount(accountId);
     if (!activeAccount) {
       await session.abortTransaction();
       return res
@@ -172,12 +181,12 @@ exports.creatorFeedDelete = async (req, res) => {
 
 exports.getCreatorFeeds = async (req, res) => {
   try {
-    const userId = req.Id;
-    if (!userId) {
+    const accountId = req.Id;
+    if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    const activeAccount = await getActiveCreatorAccount(userId);
+    const activeAccount = await getActiveCreatorAccount(accountId);
     if (!activeAccount) {
       return res
         .status(403)
@@ -217,12 +226,12 @@ exports.getCreatorFeeds = async (req, res) => {
 exports.creatorFeedScheduleUpload = async (req, res) => {
   console.log("working")
   try {
-    const userId = req.Id;
-    if (!userId) {
+    const accountId = req.Id;
+    if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    const activeAccount = await getActiveCreatorAccount(userId);
+    const activeAccount = await getActiveCreatorAccount(accountId);
     if (!activeAccount) {
       return res
         .status(403)

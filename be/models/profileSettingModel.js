@@ -24,4 +24,4 @@ const ProfileSettingsSchema = new mongoose.Schema({
   details: { type: mongoose.Schema.Types.Mixed },
 }, { timestamps: true });
 
-module.exports = mongoose.model('ProfileSetting', ProfileSettingsSchema,'ProfileSettings');
+module.exports = mongoose.model('ProfileSettings', ProfileSettingsSchema,'ProfileSettings');

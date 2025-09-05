@@ -5,40 +5,38 @@ const Categories= require('../../models/categorySchema');
 exports.adminAddCategory = async (req, res) => {
   try {
     const { names } = req.body; // expects a string: "Men, Women, Kids"
-    if (!names || !names.trim()) {
+    if (!names ) {
       return res.status(400).json({ message: "Category names are required" });
     }
-
+ 
     // Split by comma, trim spaces, capitalize first letter
     const inputCategories = names
-      .split(",")
-      .map(name => name.trim())
       .filter(name => name) // remove empty strings
       .map(name => name.charAt(0).toUpperCase() + name.slice(1));
-
+ 
     if (!inputCategories.length) {
       return res.status(400).json({ message: "No valid category names provided" });
     }
-
+ 
     // Find existing categories in DB
     const existingCategories = await Categories.find({
       name: { $in: inputCategories }
     }).select("name").lean();
-
+ 
     const existingNames = existingCategories.map(cat => cat.name);
-
+ 
     // Filter out duplicates
     const newCategories = inputCategories.filter(name => !existingNames.includes(name));
-
+ 
     if (!newCategories.length) {
       return res.status(409).json({ message: "All categories already exist" });
     }
-
+ 
     // Insert new categories
     const createdCategories = await Categories.insertMany(
       newCategories.map(name => ({ name }))
     );
-
+ 
     return res.status(201).json({
       message: "Categories added successfully",
       addedCategories: createdCategories.map(cat => ({

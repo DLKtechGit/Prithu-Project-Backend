@@ -5,33 +5,31 @@ const { feedTimeCalculator } = require('../../middlewares/feedTimeCalculator');
 const UserFeedActionInteraction =require('../../models/userFeedInterSectionModel.js');
 const fs = require('fs');
 const path=require('path');
+const mongoose = require('mongoose');
+const Account =require("../../models/accountSchemaModel.js")
+const Admin=require("../../models/adminModels/adminModel.js")
 
 
 
 
 exports.getAllFeeds = async (req, res) => {
   try {
-    const userId = req.Id || req.body.userId;      // optional fallback
-    const accountId = req.accountId || req.body.accountId || null;  // primary if exists
+    const userId = req.Id || req.body.userId; // optional fallback
+    const accountId = req.accountId || req.body.accountId || null; // primary if exists
 
+    // Step 1: Fetch feeds
     const feeds = await Feed.find()
       .sort({ createdAt: -1 })
-      .populate({
-        path: "createdByAccount",
-        populate: [
-          { path: "userId", select: "userName" },
-          { path: "profileData", select: "profileAvatar" }
-        ]
-      })
-      .select("type contentUrl category createdAt");
+      .populate("createdByAccount") // dynamically references Account or Admin via refPath
+      .select("usreId type contentUrl category createdAt createdByAccount roleRef");
 
     if (!feeds.length) {
       return res.status(404).json({ message: "No feeds found" });
     }
 
-    const feedIds = feeds.map(feed => feed._id);
+    const feedIds = feeds.map((feed) => feed._id);
 
-    // Aggregate interactions
+    // Step 2: Aggregate interactions
     const interactions = await UserFeedActionInteraction.aggregate([
       { $match: { feedId: { $in: feedIds } } },
       {
@@ -43,7 +41,7 @@ exports.getAllFeeds = async (req, res) => {
     ]);
 
     const interactionMap = {};
-    interactions.forEach(i => {
+    interactions.forEach((i) => {
       const fid = i._id.feedId.toString();
       if (!interactionMap[fid]) {
         interactionMap[fid] = { like: 0, share: 0, comment: 0, download: 0 };
@@ -51,54 +49,90 @@ exports.getAllFeeds = async (req, res) => {
       interactionMap[fid][i._id.type] = i.count;
     });
 
-    // Determine which ID to use for likes
+    // Step 3: Determine which ID to use for likes
     const likeQuery = { feedId: { $in: feedIds }, type: "like" };
     if (accountId) {
-      likeQuery.accountId = mongoose.Types.ObjectId(accountId);
+      likeQuery.accountId = new mongoose.Types.ObjectId(accountId);
     } else if (userId) {
-      likeQuery.userId = mongoose.Types.ObjectId(userId);
+      likeQuery.userId = new mongoose.Types.ObjectId(userId);
     }
 
     const likedFeeds = await UserFeedActionInteraction.find(likeQuery)
       .select("feedId -_id")
       .lean();
 
-    const likedFeedIds = likedFeeds.map(like => like.feedId.toString());
+    const likedFeedIds = likedFeeds.map((like) => like.feedId.toString());
 
-    // Build response
-    const enrichedFeeds = feeds.map(feed => {
-      const account = feed.createdByAccount;
-      const user = account?.userId;
-      const profile = account?.profileData;
+    // Step 4: Build enriched feed response
+    const enrichedFeeds = await Promise.all(
+      feeds.map(async (feed) => {
+        const account = feed.createdByAccount;
+        let userName = "Unknown";
+        let profileAvatar = "Unknown";
 
-      const folder = feed.type === "video" ? "videos" : "images";
-      const contentUrlFull = feed.contentUrl
-        ? `http://192.168.1.77:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
-        : null;
+      if (feed.roleRef === "Account" && account) {
+  // Populate userId first, then profileSettings from userId
+  const acc = await Account.findById(account._id)
+    .populate({
+      path: "userId",
+      select: "userName profileSettings",
+      populate: {
+        path: "profileSettings",
+        select: "profileAvatar"
+      }
+    })
+    .lean();
 
-      const counts = interactionMap[feed._id.toString()] || {
-        like: 0,
-        share: 0,
-        comment: 0,
-        download: 0,
-      };
+  userName = acc?.userId?.userName || "Unknown";
 
-      return {
-        feedId: feed._id,
-        userName: user?.userName || "Unknown",
-        profileAvatar: profile?.profileAvatar
-          ? `http://192.168.1.77:5000/uploads/images/${path.basename(profile.profileAvatar)}`
-          : "Unknown",
-        timeAgo: feedTimeCalculator(feed.createdAt),
-        contentUrl: feed.contentUrl,
-        contentUrlFull,
-        likesCount: counts.like,
-        shareCount: counts.share,
-        commentsCount: counts.comment,
-        downloadsCount: counts.download,
-        isLiked: likedFeedIds.includes(feed._id.toString()), // ✅ based on accountId if exists, else userId
-      };
-    });
+  profileAvatar = acc?.userId?.profileSettings?.[0]?.profileAvatar
+    ? `http://192.168.1.48:5000/uploads/images/${path.basename(
+        acc.userId.profileSettings[0].profileAvatar
+      )}`
+    : "Unknown";
+}else if (feed.roleRef === "Admin" && account) {
+          // Admin role: populate profileSetting
+          const adm = await Admin.findById(account._id)
+            .populate("profileSettings", "profileAvatar")
+            .lean();
+
+          userName = adm?.userName || "Admin";
+          profileAvatar = adm?.profileSetting?.profileAvatar
+            ? `http://192.168.1.48:5000/uploads/images/${path.basename(
+                adm.profileSetting.profileAvatar
+              )}`
+            : "Unknown";
+        }
+
+        const folder = feed.type === "video" ? "videos" : "images";
+        const contentUrlFull = feed.contentUrl
+          ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(
+              feed.contentUrl
+            )}`
+          : null;
+
+        const counts = interactionMap[feed._id.toString()] || {
+          like: 0,
+          share: 0,
+          comment: 0,
+          download: 0,
+        };
+
+        return {
+          feedId: feed._id,
+          userName,
+          profileAvatar,
+          timeAgo: feedTimeCalculator(feed.createdAt),
+          contentUrl: feed.contentUrl,
+          contentUrlFull,
+          likesCount: counts.like,
+          shareCount: counts.share,
+          commentsCount: counts.comment,
+          downloadsCount: counts.download,
+          isLiked: likedFeedIds.includes(feed._id.toString()),
+        };
+      })
+    );
 
     res.status(200).json({
       message: "Feeds retrieved successfully",
@@ -109,6 +143,8 @@ exports.getAllFeeds = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 
 

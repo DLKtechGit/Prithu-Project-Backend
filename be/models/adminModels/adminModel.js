@@ -39,7 +39,7 @@ const adminSchema = new mongoose.Schema({
   },
 
   // Profile information
-  profileSettings:{ type: mongoose.Schema.Types.ObjectId, ref: "ProfilesSettings" },
+  profileSettings:{ type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings" },
 
   // Status tracking
   isActive: { type: Boolean, default: true },
