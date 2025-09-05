@@ -91,7 +91,8 @@ adminSchema.virtual('fullName').get(function() {
 // Check if account is locked
 adminSchema.virtual('isLocked').get(function() {
   return !!(this.lockUntil && this.lockUntil > Date.now());
-});
+}, { timestamps: true });
+
 
 
 

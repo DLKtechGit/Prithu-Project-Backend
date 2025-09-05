@@ -23,7 +23,7 @@ const feedSchema = new mongoose.Schema({
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-});
+},{ timestamps: true });
 
 feedSchema.pre("save", function (next) {
   this.updatedAt = Date.now();

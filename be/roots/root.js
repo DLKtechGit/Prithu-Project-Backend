@@ -1,84 +1,88 @@
-const express =require ('express');
-const router=express.Router();
-const multer=require('multer')
-const app=express();
-const path=require('path')
-const {auth}=require('../middlewares/jwtAuthentication');
-const creatorOnly=require('../middlewares/creatorOnly');
-const adminOnly=require('../middlewares/adminOnly')
+const express = require('express');
+const router = express.Router();
+const multer = require('multer');
+const app = express();
+const path = require('path');
+const { auth } = require('../middlewares/jwtAuthentication');
+const creatorOnly = require('../middlewares/creatorOnly');
+const adminOnly = require('../middlewares/adminOnly');
 
-const {createNewUser,
-    userLogin,
-    userSendOtp,
-    userPasswordReset,
-    existUserVerifyOtp, 
-    newUserVerifyOtp,
-    userlogOut,
-}=require('../controllers/authenticationControllers/userAuthController')
+// Controllers
+const {
+  createNewUser,
+  userLogin,
+  userSendOtp,
+  userPasswordReset,
+  existUserVerifyOtp, 
+  newUserVerifyOtp,
+  userlogOut,
+} = require('../controllers/authenticationControllers/userAuthController');
 
-const {createNewCreator,
+const {
+  createNewCreator,
   creatorLogin,
   creatorSendOtp,
   existCreatorVerifyOtp,
   newCreatorVerifyOtp,
-  creatorPasswordReset ,
-}=require('../controllers/authenticationControllers/creatorAuthController')
+  creatorPasswordReset,
+} = require('../controllers/authenticationControllers/creatorAuthController');
 
-const{
+const {
   createNewBusinessUser,
   businessLogin,
   businessSendOtp,
   businessPasswordReset,
   existBusinessVerifyOtp,
   newBusinessVerifyOtp,
-}=require('../controllers/authenticationControllers/businessAuthController')
+} = require('../controllers/authenticationControllers/businessAuthController');
 
-const{
+const {
   creatorFeedUpload,
   creatorFeedDelete,
   getCreatorFeeds,
   creatorFeedScheduleUpload,
-}=require('../controllers/feedControllers/creatorFeedController')
+} = require('../controllers/feedControllers/creatorFeedController');
 
-const{
+const {
   feedsWatchByUser,
   mostWatchedFeeds,
   getAllFeeds,
-}=require('../controllers/feedControllers/feedsController')
+} = require('../controllers/feedControllers/feedsController');
 
-const{
+const {
   newAdmin,
-  adminLogin ,
+  adminLogin,
   adminSendOtp,
   existAdminVerifyOtp,
   newAdminVerifyOtp,
   adminPasswordReset,
-}=require('../controllers/authenticationControllers/adminAuthController')
+} = require('../controllers/authenticationControllers/adminAuthController');
 
-const{
+const {
   getUserdetailWithId,
-  getAllUserDetails,
   userSelectCategory,
   userAppLanguage,
   userFeedLanguage,
-}=require('../controllers/userControllers/userDetailController')
+} = require('../controllers/userControllers/userDetailController');
 
-const{
+const {
   getCategoryWithId,
   getAllCategories,
   getContentCategories,
-}=require('../controllers/categoriesController');
+} = require('../controllers/categoriesController');
 
-const{
+const {
   userProfileDetailUpdate,
   getProfileDetail,
-}=require('../controllers/profileControllers/profileController')
+} = require('../controllers/profileControllers/profileController');
 
-const{
+const {
   getUserStatus,
-}=require('../controllers/adminControllers/adminUserControllers');
+  getUsersByDate,
+  getAllUserDetails,
+} = require('../controllers/adminControllers/adminUserControllers');
 
-const{
+const {
   likeFeed,
   saveFeed,
   downloadFeed,
@@ -86,58 +90,56 @@ const{
   getUserSavedFeeds,
   getUserDownloadedFeeds,
   shareFeed,
-}=require('../controllers/feedControllers/userActionsFeedController');
+} = require('../controllers/feedControllers/userActionsFeedController');
 
-const{
+const {
   createPlan,
   updatePlan,
   deletePlan,
   getAllPlans
-}=require('../controllers/adminControllers/adminSubcriptionController');
+} = require('../controllers/adminControllers/adminSubcriptionController');
 
-
-const{
+const {
   subscribePlan,
   cancelSubscription,
   getAllSubscriptionPlans,
   getUserSubscriptionPlanWithId
-}=require('../controllers/userControllers/userSubcriptionController');
+} = require('../controllers/userControllers/userSubcriptionController');
 
-const{
+const {
   adminFeedUpload,
-}=require('../controllers/adminControllers/adminfeedController');
+} = require('../controllers/adminControllers/adminfeedController');
 
-
-const{
+const {
   getCreatorDetailWithId,
   getAllCreatorDetails,
-}=require('../controllers/creatorControllers/creatorDetailController');
+} = require('../controllers/creatorControllers/creatorDetailController');
 
-const{
+const {
   followAccount,
   unfollowAccount,
   getAccountFollowers,
   getCreatorFollowers,
-}=require('../controllers/followersControllers.js/followerDetailController');
+} = require('../controllers/followersControllers.js/followerDetailController');
 
-const{
+const {
   adminAddCategory,
-  // updateCategory,
   deleteCategory,
-}=require('../controllers/adminControllers/adminCatagoryController');
+} = require('../controllers/adminControllers/adminCatagoryController');
 
-const{addAccount,
+const {
+  addAccount,
   switchToCreator,
   switchToBusiness,
   switchToUserAccount,
   checkAccountStatus,
   getAllAccounts
-}=require('../controllers/accountController');
+} = require('../controllers/accountController');
 
+// Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log(req)
-    if (file.mimetype.startsWith('image/')){
+    if (file.mimetype.startsWith('image/')) {
       cb(null, './uploads/images');
     } else if (file.mimetype.startsWith('video/')) {
       cb(null, './uploads/videos');
@@ -149,141 +151,104 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '_' + file.originalname);
   }
 });
+const upload = multer({ storage });
 
-const upload = multer({ storage: storage });
-
-
-
-// Serve static files from the 'uploads' directory
+// Serve static files from 'uploads' folder
 app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
-// User Authentication Endpoints
-router.post('/auth/user/register',createNewUser);
-router.post('/auth/user/login',userLogin);
-router.post('/auth/user/otp-send',userSendOtp);
-router.post('/auth/exist/user/verify-otp',existUserVerifyOtp,);
-router.post('/auth/new/user/verify-otp',newUserVerifyOtp,);
-router.post('/auth/user/reset-password',userPasswordReset) ;
-router.post("/auth/user/logout",userlogOut);
+/* --------------------- User Authentication --------------------- */
+router.post('/auth/user/register', createNewUser);
+router.post('/auth/user/login', userLogin);
+router.post('/auth/user/otp-send', userSendOtp);
+router.post('/auth/exist/user/verify-otp', existUserVerifyOtp);
+router.post('/auth/new/user/verify-otp', newUserVerifyOtp);
+router.post('/auth/user/reset-password', userPasswordReset);
+router.post('/auth/user/logout', userlogOut);
 
-// //Fresh Users API EndPoints
-router.post('/app/language',auth,userAppLanguage);
-router.post('/feed/language',auth,userFeedLanguage);
-router.get('/get/category',getAllCategories);
-router.post('/user/select/category',userSelectCategory);
+/* --------------------- Fresh Users API --------------------- */
+router.post('/app/language', auth, userAppLanguage);
+router.post('/feed/language', auth, userFeedLanguage);
+router.get('/get/category', getAllCategories);
+router.post('/user/select/category', userSelectCategory);
 
+/* --------------------- User Feed Actions --------------------- */
+router.post('/user/feed/like', likeFeed);
+router.post('/user/feed/save', auth, saveFeed);
+router.post('/user/feed/download', auth, downloadFeed);
+router.post('/user/feed/comment', auth, addComment);
+router.post('/user/feed/share', auth, shareFeed);
 
-// //User Feed Actions
-router.post('/user/feed/like',likeFeed);
-router.post('/user/feed/save',auth,saveFeed);
-router.post('/user/feed/download',auth,downloadFeed);
-router.post('/user/feed/comment',auth,addComment);
-router.post('/user/feed/share',auth,shareFeed);
+/* --------------------- User Feed Get Actions --------------------- */
+router.get('/user/saved/feeds', auth, getUserSavedFeeds);
+router.get('/user/saved/download', auth, getUserDownloadedFeeds);
 
-// //User Feed Get Actions
-router.get('/user/saved/feeds',auth,getUserSavedFeeds);
-router.get('/user/saved/download',auth,getUserDownloadedFeeds);
+/* --------------------- User Subscription --------------------- */
+router.post('/user/plan/subscription', auth, subscribePlan);
+router.post('/user/cancel/subscription', auth, cancelSubscription);
+router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
-// //User Subscription API EndPoints
-router.post('/user/plan/subscription',auth,subscribePlan); // UserId, PlanId
-router.post('/user/cancel/subscription',auth,cancelSubscription);//UserId, SubscriptionId
-router.get('/user/user/subscriptions',auth,getUserSubscriptionPlanWithId);
+/* --------------------- User Follower API --------------------- */
+router.post('/user/follow/creator', auth, followAccount);
+router.post('/user/unfollow/creator', auth, unfollowAccount);
+router.get('/user/get/followers', auth, getAccountFollowers);
 
-// //User Follower API EndPoints
-router.post('/user/follow/creator',auth,followAccount);
- router.post('/user/unfollow/creator',auth,unfollowAccount);
- router.get('/user/get/followers',auth,getAccountFollowers); 
+/* --------------------- Creator Feed API --------------------- */
+router.post("/creator/feed/upload", upload.single('file'), creatorFeedUpload);
+router.post("/creator/feed/schedule", auth, upload.single('file'), creatorFeedScheduleUpload);
+router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
+router.get('/creator/getall/feeds', auth, getCreatorFeeds);
+router.get('/creator/get/feed/category', getContentCategories);
 
-
-// // //Creator Authentication API EndPoints 
-// // router.post('/auth/creator/register',createNewCreator);
-// // router.post('/auth/creator/login',creatorLogin);
-// // router.post('/auth/creator/sent-otp',creatorSendOtp);
-// // router.post('/auth/exist/creator/Verify-otp',existCreatorVerifyOtp);
-// // router.post('/auth/new/creator/Verify-otp',newCreatorVerifyOtp);
-// // router.post('/auth/creator/reset-password',creatorPasswordReset);
-
-// //Creator Feed API Endpoints
-router.post("/creator/feed/upload",upload.single('file'),creatorFeedUpload);
-router.post("/creator/feed/schedule",auth,upload.single('file'),creatorFeedScheduleUpload);
-router.delete('/creator/delete/feeds',auth,creatorFeedDelete); // userId , feedId
-router.get('/creator/getall/feeds',auth,getCreatorFeeds);
-router.get('/creator/get/feed/category',getContentCategories);
-
-// //Creator Follower API EndPoints
+/* --------------------- Creator Follower API --------------------- */
 router.get('/creator/get/followers', getCreatorFollowers);
 
-// // // Business Authentication API EndPoints
-// // router.post('/auth/business/register',createNewBusinessUser);
-// // router.post('/auth/business/login',businessLogin);
-// // router.post('/auth/business/sent-otp',businessSendOtp);
-// // router.post('/auth/exist/business/verify-otp',existBusinessVerifyOtp);
-// // router.post('/auth/new/business/verify-otp',newBusinessVerifyOtp);
-// // router.post('/auth/business/reset-password',businessPasswordReset);
+/* --------------------- Admin Authentication --------------------- */
+router.post('/auth/admin/register', newAdmin);
+router.post('/auth/admin/login', adminLogin);
+router.post('/auth/admin/sent-otp', adminSendOtp);
+router.post('/auth/exist/admin/verify-otp', existAdminVerifyOtp);
+router.post('/auth/new/admin/verify-otp', newAdminVerifyOtp);
+router.post('/auth/admin/reset-password', adminPasswordReset);
 
+/* --------------------- Admin Feed API --------------------- */
+router.post('/admin/feed', upload.single('file'), adminFeedUpload);
 
-// //Admin Authentication API EndPoints
-router.post('/auth/admin/register',newAdmin);
-router.post('/auth/admin/login',adminLogin);
-router.post('/auth/admin/sent-otp',adminSendOtp);
-router.post('/auth/exist/admin/verify-otp',existAdminVerifyOtp);
-router.post('/auth/new/admin/verify-otp',newAdminVerifyOtp);
-router.post('/auth/admin/reset-password',adminPasswordReset);
-
-// //Admin Feed API EndPoints
-router.post('/admin/feed',upload.single('file'), adminFeedUpload);
-
-// //Admin Category API EndPoints
-router.post('/admin/feed/category',adminAddCategory);
+/* --------------------- Admin Category API --------------------- */
+router.post('/admin/feed/category', adminAddCategory);
 router.delete('/admin/feed/category', deleteCategory);
 router.get('/admin/feed/category', getAllCategories);
 
-// //Admin Subscription API EndPoints
-router.post('/admin/create/subscription', createPlan); // name, price, durationDays, limits, description, planType, isActive 
-router.put('/admin/update/subscription/:id', updatePlan); // Plan ID
-router.delete('/admin/delete/subscription/:id', deletePlan);// Plan ID
+/* --------------------- Admin Subscription API --------------------- */
+router.post('/admin/create/subscription', createPlan);
+router.put('/admin/update/subscription/:id', updatePlan);
+router.delete('/admin/delete/subscription/:id', deletePlan);
 router.get('/admin/getall/subscriptions', getAllPlans);
 
-// //Admin User API EndPoints
-router.get('/admin/getall/users',getAllUserDetails);
-router.get('/admin/get/user/:id',getUserdetailWithId);
-router.get("/admin/users/status",getUserStatus);
-// // router.delete('/admin/delete/feed/:id',auth,creatorOnly,creatorFeedDelete);
-// // router.get('/admin/getall/feeds',auth,creatorOnly,getCreatorFeeds);
+/* --------------------- Admin User API --------------------- */
+router.get('/admin/getall/users', getAllUserDetails);
+router.get('/admin/get/user/:id', getUserdetailWithId);
+router.get("/admin/users/status", getUserStatus);
+router.get("/admin/user/detail/by-date", getUsersByDate);
 
-// //Admin Creator API Endpoints
-// // router.get("/admin/creators/status",getUserStatus);
-// // router.get('/admin/creators/status',getCreatorDetailWithId);
+/* --------------------- Feeds API --------------------- */
+router.get('/all/feeds', getAllFeeds);
+router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
-// //Feeds API EndPoints
-router.get('/all/feeds',getAllFeeds)
-router.post('/feeds/watchedbyuser',feedsWatchByUser);
-// // router.post('/most/watched/feeds',mostWatchedFeeds);
+/* --------------------- Tags API --------------------- */
+router.get('/all/catagories', getContentCategories);
+router.get('/all/catagories/:id', getCategoryWithId);
 
+/* --------------------- Profile Settings --------------------- */
+router.post('/profile/detail/update', upload.single('file'), userProfileDetailUpdate);
+router.get('/get/profile/detail', auth, getProfileDetail);
 
-// //Tags API EndPoints
-router.get('/all/catagories',getContentCategories)
-router.get('/all/catagories/:id',getCategoryWithId)
+/* --------------------- Account API --------------------- */
+router.post('/account/add', auth, addAccount);
+router.post('/account/switch/creator', switchToCreator);
+router.post('/account/switch/user', auth, switchToUserAccount);
+router.post('/account/status', auth, checkAccountStatus);
 
-
-
-// //Profile Setting detail with id
- router.post('/profile/detail/update',upload.single('file'),userProfileDetailUpdate)
- router.get('/get/profile/detail',auth,getProfileDetail)
-
-
-//  //Subscription Plan API EndPoints
-// router.get('/getall/subscriptions', getAllSubscriptionPlans);
-
-
-// //Account API EndPoints
-router.post('/account/add',auth,addAccount); //Send Token
-router.post('/account/switch/creator',switchToCreator); //Send Token
-router.post('/account/switch/user',auth,switchToUserAccount); //Send Token
-router.post('/account/status',auth,checkAccountStatus); //Send Token
-
-
-module.exports= router;
+module.exports = router;

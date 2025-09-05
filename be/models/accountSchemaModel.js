@@ -5,7 +5,7 @@ const AccountSchema = new mongoose.Schema({
   type: { type: String, enum: ["User", "Business", "Creator"], required: true },
   profileData: { type: mongoose.Schema.Types.ObjectId, ref: "ProfileSetting" },
   createdAt: { type: Date, default: Date.now }
-});
+},{ timestamps: true });
 
 // prevent duplicate account type per user
 AccountSchema.index({ userId: 1, type: 1 }, { unique: true });

@@ -85,9 +85,9 @@ exports.getAllFeeds = async (req, res) => {
 
   userName = acc?.userId?.userName || "Unknown";
 
-  profileAvatar = acc?.userId?.profileSettings?.[0]?.profileAvatar
+  profileAvatar = acc?.userId?.profileSettings?.profileAvatar
     ? `http://192.168.1.48:5000/uploads/images/${path.basename(
-        acc.userId.profileSettings[0].profileAvatar
+        acc.userId.profileSettings.profileAvatar
       )}`
     : "Unknown";
 }else if (feed.roleRef === "Admin" && account) {
@@ -97,9 +97,9 @@ exports.getAllFeeds = async (req, res) => {
             .lean();
 
           userName = adm?.userName || "Admin";
-          profileAvatar = adm?.profileSetting?.profileAvatar
+          profileAvatar = adm?.profileSettings?.profileAvatar
             ? `http://192.168.1.48:5000/uploads/images/${path.basename(
-                adm.profileSetting.profileAvatar
+                adm.profileSettings.profileAvatar
               )}`
             : "Unknown";
         }
@@ -123,8 +123,7 @@ exports.getAllFeeds = async (req, res) => {
           userName,
           profileAvatar,
           timeAgo: feedTimeCalculator(feed.createdAt),
-          contentUrl: feed.contentUrl,
-          contentUrlFull,
+          contentUrl: contentUrlFull,
           likesCount: counts.like,
           shareCount: counts.share,
           commentsCount: counts.comment,
