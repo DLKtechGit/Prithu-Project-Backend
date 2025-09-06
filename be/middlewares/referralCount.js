@@ -1,105 +1,187 @@
-const UserLevel = require("../models/userModels/userReferralLevelModel");
-const User = require("../models/userModels/userModel");
+const mongoose = require('mongoose');
+const User = require('../models/userModels/userModel');
+const ReferralEdge = require('../models/userModels/userRefferalModels/refferalEdgeModle');
+const UserLevel = require('../models/userModels/userRefferalModels/userReferralLevelModel');
+const DirectFinisher = require('../models/userModels/userRefferalModels/directReferralFinishers');
+const { computeThreshold } = require('../middlewares/threshHold');
 
-exports.referralStructure = async (referralCode, newUserId) => {
-  console.log("Starting referral structure update");
-
-  try {
-    if (!referralCode) return { success: false, message: "Referral code missing" };
-
-    const referrerUser = await User.findOne({ referralCode });
-    if (!referrerUser) return { success: false, message: "Invalid referral code" };
-
-    // Get latest level document for the referrer
-    let latestLevel = await UserLevel.findOne({ userId: referrerUser._id }).sort({ userLevel: -1 });
-
-    if (!latestLevel) {
-      // No level exists → create level 1
-      latestLevel = new UserLevel({
-        userId: referrerUser._id,
-        userLevel: 1,
-        levelLimit: 1,
-        tier: 1,
-        referringPeople: [newUserId],
-      });
-      await latestLevel.save();
-      console.log(`Created level 1 for user ${referrerUser._id}`);
-    } else {
-      // Add new user to current level
-      latestLevel.referringPeople.push(newUserId);
-
-      // Check if threshold reached to create new level
-      if (latestLevel.referringPeople.length >= 2 ** latestLevel.userLevel) {
-        const newLevelNum = latestLevel.userLevel + 1;
-        const newLevelDoc = new UserLevel({
-          userId: referrerUser._id,
-          userLevel: newLevelNum,
-          levelLimit: latestLevel.levelLimit + 1,
-          tier: Math.ceil(newLevelNum / 10),
-          referringPeople: [], // start fresh
-        });
-        await newLevelDoc.save();
-        console.log(`Created level ${newLevelNum} for user ${referrerUser._id}`);
+// get or create level document (upsert)
+async function getOrCreateLevel(userId, level, session = null) {
+  const threshold = computeThreshold(level);
+  await UserLevel.updateOne(
+    { userId, level },
+    {
+      $setOnInsert: {
+        userId,
+        level,
+        tier: Math.ceil(level / 10),
+        leftTreeCount: 0,
+        rightTreeCount: 0,
+        threshold
       }
+    },
+    { upsert: true, session }
+  );
+  return UserLevel.findOne({ userId, level }).session(session);
+}
 
-      await latestLevel.save();
-    }
-
-    // Loop up the referral chain
-    let currentReferrerId = referrerUser.referredByUserId;
-    while (currentReferrerId) {
-      const parentUser = await User.findById(currentReferrerId);
-      if (!parentUser) break;
-
-      // Increment referral count
-      parentUser.referralCount = (parentUser.referralCount || 0) + 1;
-      await parentUser.save();
-
-      let parentLevel = await UserLevel.findOne({ userId: parentUser._id }).sort({ userLevel: -1 });
-
-      if (!parentLevel) {
-        // Create level 1 if missing
-        parentLevel = new UserLevel({
-          userId: parentUser._id,
-          userLevel: 1,
-          levelLimit: 1,
-          tier: 1,
-          referringPeople: [newUserId],
-        });
-        await parentLevel.save();
-      } else {
-        // Push user to current level
-        parentLevel.referringPeople.push(newUserId);
-
-        // Check threshold
-        if (parentLevel.referringPeople.length >= parentLevel.userLevel**parentLevel.levelLimit) {
-          const newLevelNum = parentLevel.userLevel + 1;
-          const newLevelDoc = new UserLevel({
-            userId: parentUser._id,
-            userLevel: newLevelNum,
-            levelLimit: parentLevel.levelLimit + 1,
-            tier: Math.ceil(newLevelNum / 10),
-            referringPeople: [], // start fresh
-          });
-          await newLevelDoc.save();
-
-          // Unlock referral code at level 100 / tier 10
-          if (newLevelNum >= 100 && Math.ceil(newLevelNum / 10) >= 10) {
-            parentUser.referralCodeValid = true;
-            await parentUser.save();
-            console.log(`Referral code unlocked for user ${parentUser._id}`);
-          }
-        }
-
-        await parentLevel.save();
-      }
-
-      currentReferrerId = parentUser.referredByUserId;
-    }
-
-    return { success: true, message: "Referral structure updated successfully" };
-  } catch (error) {
-    console.error("Error in referralStructure:", error);
-    return { success: false, message: "Server error" };
+// decide placement level policy: simplest — highest incomplete level (lowest level with space)
+// You can have more sophisticated logic.
+async function getActivePlacementLevel(userId, session = null) {
+  // find highest level doc
+  const lvl = await UserLevel.find({ userId }).sort({ level: -1 }).limit(1).session(session);
+  if (lvl && lvl.length) {
+    return lvl[0].level;
   }
+  return 1;
+}
+
+/**
+ * Place a referral under a parent (idempotent)
+ * - creates ReferralEdge if not exists
+ * - increments parent UserLevel's side count
+ * - creates DirectFinisher as 'incomplete' for parent->child
+ */
+async function placeReferral({ parentId, childId }) {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    // ensure level exists
+    let level = await getActivePlacementLevel(parentId, session);
+    // ensure level doc exists
+    let lvlDoc = await getOrCreateLevel(parentId, level, session);
+
+    // choose side
+    const side = (lvlDoc.leftTreeCount <= lvlDoc.rightTreeCount) ? 'left' : 'right';
+
+    // idempotent edge creation
+    await ReferralEdge.updateOne(
+      { parentId, childId },
+      {
+        $setOnInsert: {
+          parentId, childId, level, side, createdAt: new Date()
+        }
+      },
+      { upsert: true, session }
+    );
+
+    // increment counts on the level
+    await UserLevel.updateOne(
+      { userId: parentId, level },
+      { $inc: side === 'left' ? { leftTreeCount: 1 } : { rightTreeCount: 1 } },
+      { session }
+    );
+
+    // increment small counter on User (directReferralsCount)
+    await User.updateOne({ _id: parentId }, { $inc: { directReferralsCount: 1 } }, { session });
+
+    // seed direct finisher record
+    await DirectFinisher.updateOne(
+      { parentId, childId },
+      {
+        $setOnInsert: {
+          parentId,
+          childId,
+          side,
+          status: 'incomplete',
+          createdAt: new Date()
+        },
+        $set: { updatedAt: new Date() }
+      },
+      { upsert: true, session }
+    );
+
+    // Try promotion for this parent (enqueue in production; here syncronous)
+    await tryPromoteUserLevel(parentId, level, session);
+
+    await session.commitTransaction();
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+}
+
+/**
+ * Try to promote user at level L to L+1, with carry-over of overflow
+ * Must be called inside a transaction if part of larger flow.
+ */
+async function tryPromoteUserLevel(userId, level, externalSession = null) {
+  const session = externalSession || (await mongoose.startSession());
+  let createdLocalSession = false;
+  try {
+    if (!externalSession) { session.startTransaction(); createdLocalSession = true; }
+
+    const lvl = await UserLevel.findOne({ userId, level }).session(session);
+    if (!lvl) {
+      if (createdLocalSession) {
+        await session.commitTransaction();
+        session.endSession();
+      }
+      return; // nothing to do
+    }
+
+    if (lvl.leftTreeCount >= lvl.threshold && lvl.rightTreeCount >= lvl.threshold) {
+      // ensure target level doc exists
+      const nextLevel = level + 1;
+      await getOrCreateLevel(userId, nextLevel, session);
+
+      // carry-over left overflow
+      const leftOverflow = lvl.leftTreeCount - lvl.threshold;
+      if (leftOverflow > 0) {
+        // get last leftOverflow edges (latest ones)
+        const toMoveLeft = await ReferralEdge.find({ parentId: userId, level, side: 'left' })
+          .sort({ createdAt: -1 })
+          .limit(leftOverflow)
+          .session(session);
+
+        const ids = toMoveLeft.map(e => e._id);
+        if (ids.length) {
+          await ReferralEdge.updateMany({ _id: { $in: ids } }, { $set: { level: nextLevel } }, { session });
+          await UserLevel.updateOne({ userId, level }, { $inc: { leftTreeCount: -ids.length } }, { session });
+          await UserLevel.updateOne({ userId, level: nextLevel }, { $inc: { leftTreeCount: ids.length } }, { session });
+        }
+      }
+
+      // carry-over right overflow (if you want symmetrical behavior)
+      const rightOverflow = lvl.rightTreeCount - lvl.threshold;
+      if (rightOverflow > 0) {
+        const toMoveRight = await ReferralEdge.find({ parentId: userId, level, side: 'right' })
+          .sort({ createdAt: -1 })
+          .limit(rightOverflow)
+          .session(session);
+
+        const ids = toMoveRight.map(e => e._id);
+        if (ids.length) {
+          await ReferralEdge.updateMany({ _id: { $in: ids } }, { $set: { level: nextLevel } }, { session });
+          await UserLevel.updateOne({ userId, level }, { $inc: { rightTreeCount: -ids.length } }, { session });
+          await UserLevel.updateOne({ userId, level: nextLevel }, { $inc: { rightTreeCount: ids.length } }, { session });
+        }
+      }
+
+      // NOTE: we do NOT delete the L1 doc — it stays. We only move overflow edges to level+1.
+      // If you have side-effects on promotion (e.g., set flags, payout) handle it here.
+
+      // Optionally enqueue a job that tries to promote for the ancestor user who referred this user (chain promotions).
+    }
+
+    if (createdLocalSession) {
+      await session.commitTransaction();
+      session.endSession();
+    }
+  } catch (err) {
+    if (createdLocalSession) {
+      await session.abortTransaction();
+      session.endSession();
+    }
+    throw err;
+  }
+}
+
+module.exports = {
+  placeReferral,
+  tryPromoteUserLevel,
+  getOrCreateLevel
 };

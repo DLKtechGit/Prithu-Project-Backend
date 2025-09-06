@@ -10,6 +10,7 @@ const {initSocket}=require('./middlewares/webSocket');
 const cookieParser=require('cookie-parser');
 const path = require ("path")
 const {scheduleFeedPosts}=require('./corn/feedCorn');
+const {startWatcher}=require('./middlewares/referralCodeWatcher')
 
 const allowedOrigins = process.env.CLIENT_URL?.split(",") || ["http://localhost:5173"];
 
@@ -41,6 +42,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 scheduleFeedPosts();
 
 // initSocket(Server);
+
+
+startWatcher()
 
 // Mongodb Server and Port ServerConnectiion
 mongoose.connect(process.env.MONGODB_URI, {

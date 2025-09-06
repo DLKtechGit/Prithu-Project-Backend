@@ -4,8 +4,7 @@ const multer = require('multer');
 const app = express();
 const path = require('path');
 const { auth } = require('../middlewares/jwtAuthentication');
-const creatorOnly = require('../middlewares/creatorOnly');
-const adminOnly = require('../middlewares/adminOnly');
+
 
 // Controllers
 const {
@@ -74,6 +73,8 @@ const {
 const {
   userProfileDetailUpdate,
   getProfileDetail,
+  childAdminProfileDetailUpdate,
+  adminProfileDetailUpdate,
 } = require('../controllers/profileControllers/profileController');
 
 const {
@@ -92,6 +93,11 @@ const {
   shareFeed,
   commentLike,
 } = require('../controllers/feedControllers/userActionsFeedController');
+
+const{
+  getLeftReferrals,
+  getRightReferrals,
+}=require('../controllers/userControllers/userRefferalController')
 
 
 const {
@@ -203,10 +209,21 @@ router.post('/user/plan/subscription', auth, subscribePlan);
 router.post('/user/cancel/subscription', auth, cancelSubscription);
 router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
+
+/* --------------------- User Subscription --------------------- */
+router.get('/user/left/tree/referals',getLeftReferrals);
+router.get('/user/right/tree/referals',getRightReferrals);
+// router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
+
+
+
 /* --------------------- User Follower API --------------------- */
 router.post('/user/follow/creator', auth, followAccount);
 router.post('/user/unfollow/creator', auth, unfollowAccount);
 router.get('/user/get/followers', auth, getAccountFollowers);
+
+/* --------------------- User Profile API --------------------- */
+router.post('/user/profile/detail/update',upload.single('file'), userProfileDetailUpdate);
 
 /* --------------------- Creator Feed API --------------------- */
 router.post("/creator/feed/upload", upload.single('file'), creatorFeedUpload);
@@ -234,6 +251,9 @@ router.post('/auth/exist/admin/verify-otp', existAdminVerifyOtp);
 router.post('/auth/new/admin/verify-otp', newAdminVerifyOtp);
 router.post('/auth/admin/reset-password', adminPasswordReset);
 
+/* --------------------- Admin Profile API --------------------- */
+router.post('/admin/profile/detail/update',auth, upload.single('file'), adminProfileDetailUpdate);
+
 /* --------------------- Admin Feed API --------------------- */
 router.post('/admin/feed', upload.single('file'), adminFeedUpload);
 
@@ -260,8 +280,13 @@ router.get('/admin/getall/creators', getAllCreatorDetails);
 // router.get("/admin/users/status", getUserStatus);
 // router.get("/admin/user/detail/by-date", getUsersByDate);
 
+
+/* --------------------- Child Follower API --------------------- */
+router.post('/child/admin/profile/detail/update',auth, upload.single('file'), childAdminProfileDetailUpdate);
+
+
 /* --------------------- Feeds API --------------------- */
- router.post('/all/feeds', getAllFeeds);
+ router.get('/all/feeds', getAllFeeds);
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
 /* --------------------- Tags API --------------------- */
@@ -269,8 +294,7 @@ router.get('/all/catagories', getContentCategories);
 router.get('/all/catagories/:id', getCategoryWithId);
 
 /* --------------------- Profile Settings --------------------- */
-router.post('/profile/detail/update', upload.single('file'), userProfileDetailUpdate);
-router.get('/get/profile/detail', auth, getProfileDetail);
+router.get('/get/profile/detail', getProfileDetail);
 
 /* --------------------- Account API --------------------- */
 router.post('/account/add', auth, addAccount);

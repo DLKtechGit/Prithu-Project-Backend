@@ -1,8 +1,7 @@
-const User = require("../../models/userModels/userModel.js");
+const Users = require("../../models/userModels/userModel.js");
 const makePresenceService = require("../../services/presenseService.js");
 const { initRedis } = require("../../radisClient/intialRadis.js");
 const {userTimeAgo}=require('../../middlewares/userStatusTimeAgo.js')
-
 
 
 let redisClient;

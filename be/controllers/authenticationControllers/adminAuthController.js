@@ -18,8 +18,8 @@ const transporter = nodemailer.createTransport({
 // Register New Admin
 exports.newAdmin = async (req, res) => {
   try {
-    const { username, email, password,} = req.body;
-
+    const { username, email, password,adminType} = req.body;
+    
     console.log({ username, email, password,})
     // Check if username or email already exists
     if (await Admin.findOne({ userName:username })) {
@@ -37,6 +37,7 @@ exports.newAdmin = async (req, res) => {
         userName:username,
         email,
         passwordHash,
+        adminType:adminType,
 
     });
 

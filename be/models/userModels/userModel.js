@@ -22,8 +22,8 @@ const UserSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
 
     // Language Preferences
-    appLanguage: { type: String, default: "en" },
-    feedLanguage: { type: String, default: "en" },
+    appLanguage: { type: String, default: null },
+    feedLanguage: { type: String, default: null },
 
     // Roles & Accounts
     roles: { type: [String], enum: ["User", "Business", "Creator"], default: ["User"] },
@@ -45,6 +45,12 @@ const UserSchema = new mongoose.Schema(
     referralCount: { type: Number, default: 0 },
     directReferralsCount: { type: Number, default: 0 },
     sideUnderParent: { type: String, enum: ["left", "right", null], default: null },
+
+    // ✅ New Left/Right Finisher & Incomplete Tracking
+    directReferralFinishersLeft: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    directReferralIncompleteLeft: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    directReferralFinishersRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    directReferralIncompleteRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     // Preferences
     categories: { type: [String], default: [] },

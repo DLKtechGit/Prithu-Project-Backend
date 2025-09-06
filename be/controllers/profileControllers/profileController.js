@@ -1,8 +1,8 @@
 const { body, validationResult } = require("express-validator");
 const Profile = require("../../models/profileSettingModel");
 const User = require("../../models/userModels/userModel");
-const Admin = require("../../models/adminModels/adminModel"); // missing in your code
-const Account = require("../../models/accountSchemaModel");
+const Admin = require("../../models/adminModels/adminModel");
+const ChildAdmin = require("../../models/childAdminModel");
 
 // ✅ Validation middleware
 exports.validateUserProfileUpdate = [
@@ -25,15 +25,9 @@ exports.validateUserProfileUpdate = [
 exports.userProfileDetailUpdate = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
-    const { accountId } = req.body; // ← fixed
-    const userRole = req.role || req.body.role ;
 
-    if (!userId && !accountId) {
-      return res.status(400).json({ message: "Either userId or accountId is required" });
-    }
-
-    if (userId && accountId) {
-      return res.status(400).json({ message: "Provide either userId or accountId, not both" });
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
     }
 
     // ✅ Validate request
@@ -70,55 +64,33 @@ exports.userProfileDetailUpdate = async (req, res) => {
       return res.status(400).json({ message: "No fields provided for update" });
     }
 
-    let profile;
+    // ---- Update Profile for user ----
+    let profile = await Profile.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { new: true, upsert: true }
+    );
 
-    // ---- Case 1: Update by userId ----
-    if (userId) {
-      // ✅ Upsert profile in one query
-      profile = await Profile.findOneAndUpdate(
-        { userId },
-        { $set: updateData },
-        { new: true, upsert: true }
-      );
-
-      // ✅ Username logic
-      if (userName) {
-        const Model = userRole === "Admin" ? Admin : User;
-
-        const existing = await Model.findOne({ userName }).lean();
-        if (existing && existing._id.toString() !== userId.toString()) {
-          return res.status(400).json({ message: "Username already exists" });
-        }
-
-        await Model.findByIdAndUpdate(
-          userId,
-          { userName, $set: { profileSettings: profile._id } },
-          { new: true }
-        ).lean();
-
-        profile.userName = userName;
-        profile.save()
+    // ---- Handle username uniqueness ----
+    if (userName) {
+      const existing = await User.findOne({ userName }).lean();
+      if (existing && existing._id.toString() !== userId.toString()) {
+        return res.status(400).json({ message: "Username already exists" });
       }
+
+      await User.findByIdAndUpdate(
+        userId,
+        { userName, $set: { profileSettings: profile._id } },
+        { new: true }
+      ).lean();
+
+      profile.userName = userName;
+      await profile.save();
     }
 
-    // ---- Case 2: Update by accountId ----
-    if (accountId) {
-      profile = await Profile.findOneAndUpdate(
-        { accountId },
-        { $set: { ...updateData, ...(userName ? { userName } : {}) } },
-        { new: true, upsert: true }
-      );
-
-      // ✅ Link profile to account
-      await Account.findByIdAndUpdate(accountId, { profileData: profile._id }, { new: true });
-    }
-
-    // ✅ Final populate only if account exists
+    // ✅ Populate linked user (with username & email)
     const populatedProfile = await Profile.findById(profile._id)
-      .populate({
-        path: "accountId",
-        populate: { path: "userId", select: "userName email" },
-      })
+      .populate("userId", "userName email")
       .lean();
 
     return res.status(200).json({
@@ -132,7 +104,170 @@ exports.userProfileDetailUpdate = async (req, res) => {
 };
 
 
+exports.adminProfileDetailUpdate = async (req, res) => {
+  try {
+    const adminId = req.Id || req.body.adminId;
 
+    
+    // ✅ Verify that this admin is actually a ChildAdmin
+    const admin = await Admin.findById(adminId).lean();
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+    if (admin.role !== "Admin") {
+      return res.status(403).json({ message: "Access denied: Not Admin" });
+    }
+
+    if (!adminId) {
+      return res.status(400).json({ message: "adminId is required" });
+    }
+
+   
+
+    const allowedFields = [
+      "phoneNumber",
+      "bio",
+      "displayName",
+      "dateOfBirth",
+      "maritalStatus",
+      "theme",
+      "language",
+      "timezone",
+      "details",
+      "notifications",
+      "privacy",
+    ];
+
+    const updateData = {};
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    });
+
+    if (req.file?.path) updateData.profileAvatar = req.file.path;
+
+    const userName = req.body.userName;
+
+    if (Object.keys(updateData).length === 0 && !userName) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
+
+    // ---- Update Profile for Admin ----
+    let profile = await Profile.findOneAndUpdate(
+      { adminId },
+      { $set: updateData },
+      { new: true, upsert: true }
+    );
+
+    // ---- Handle username uniqueness ----
+    if (userName) {
+      const existing = await Admin.findOne({ userName }).lean();
+      if (existing && existing._id.toString() !== adminId.toString()) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      await Admin.findByIdAndUpdate(
+        adminId,
+        { userName, $set: { profileSettings: profile._id } },
+        { new: true }
+      ).lean();
+
+      profile.userName = userName;
+      await profile.save();
+    }
+
+    const populatedProfile = await Profile.findById(profile._id)
+      .populate("adminId", "userName email role")
+      .lean();
+
+    return res.status(200).json({
+      message: "Admin profile updated successfully",
+      profile: populatedProfile,
+    });
+  } catch (error) {
+    console.error("Error in adminProfileDetailUpdate:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+exports.childAdminProfileDetailUpdate = async (req, res) => {
+  try {
+    const childAdminId = req.Id || req.body.childAdminId;
+
+    if (!childAdminId) {
+      return res.status(400).json({ message: "childAdminId is required" });
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: "Validation failed", errors: errors.array() });
+    }
+
+    const allowedFields = [
+      "phoneNumber",
+      "bio",
+      "displayName",
+      "dateOfBirth",
+      "maritalStatus",
+      "theme",
+      "language",
+      "timezone",
+      "details",
+      "notifications",
+      "privacy",
+    ];
+
+    const updateData = {};
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    });
+
+    if (req.file?.path) updateData.profileAvatar = req.file.path;
+
+    const userName = req.body.userName;
+
+    if (Object.keys(updateData).length === 0 && !userName) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
+
+    // ---- Update Profile for Child Admin ----
+    let profile = await Profile.findOneAndUpdate(
+      { childAdminId },
+      { $set: updateData },
+      { new: true, upsert: true }
+    );
+
+    // ---- Handle username uniqueness ----
+    if (userName) {
+      const existing = await ChildAdmin.findOne({ userName }).lean();
+      if (existing && existing._id.toString() !== childAdminId.toString()) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      await ChildAdmin.findByIdAndUpdate(
+        childAdminId,
+        { userName, $set: { profileSettings: profile._id } },
+        { new: true }
+      ).lean();
+
+      profile.userName = userName;
+      await profile.save();
+    }
+
+    const populatedProfile = await Profile.findById(profile._id)
+      .populate("childAdminId", "userName email role")
+      .lean();
+
+    return res.status(200).json({
+      message: "Child Admin profile updated successfully",
+      profile: populatedProfile,
+    });
+  } catch (error) {
+    console.error("Error in childAdminProfileDetailUpdate:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 
 
@@ -144,25 +279,26 @@ exports.userProfileDetailUpdate = async (req, res) => {
 exports.getProfileDetail = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId; // from auth middleware
-    const userRole = req.role;
-
+    console.log(userId)
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
-
-    // ✅ Find profile once and populate userName based on role
-    const profile = await Profile.findOne({ userId }).populate({
-      path: "userId",
-      model: userRole === "Admin" ? "Admin" : "User", // dynamic model
-      select: "userName email", // only what you need
-    });
+   
+    // ✅ Fetch only what you need
+    const profile = await Profile.findOne(
+      { userId},
+      "displayName bio phoneNumber profileAvatar theme language timezone notifications privacy"
+    )
+      .populate("userId", "userName email") // only fetch userName & email
+      
 
     if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
     return res.status(200).json({
-      profileSetting: profile,
+      message: "Profile fetched successfully",
+      profile,
       userName: profile.userId?.userName || null,
     });
   } catch (error) {

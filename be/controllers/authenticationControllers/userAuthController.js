@@ -7,7 +7,8 @@ const { generateReferralCode } = require('../../middlewares/generateReferralCode
 const otpStore=new Map();
 const StoreUserDevice=require('../../models/devicetrackingModel');
 const makeSessionService = require("../../services/sessionService");
-const {referralStructure} = require('../../middlewares/referralCount');
+const {placeReferral}=require('../../middlewares/referralCount');
+const {startUpProcessCheck}=require('../../middlewares/userStartUpProcessHelper')
 
 // const sessionService = makeSessionService(User,StoreUserDevice);
 
@@ -21,10 +22,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Register New User
+
+
 exports.createNewUser = async (req, res) => {
   try {
     const { username, email, password, referralCode } = req.body;
+    console.log({ username, email, password, referralCode })
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -42,7 +45,7 @@ exports.createNewUser = async (req, res) => {
     let referredByUserId = null;
     let referringUser = null;
 
-    // Referral code validation
+    // 🔹 Validate referral code
     if (referralCode) {
       referringUser = await User.findOne({
         referralCode,
@@ -53,7 +56,7 @@ exports.createNewUser = async (req, res) => {
         return res.status(400).json({ message: "Referral code invalid." });
       }
 
-      // Check usage limit
+      // Check usage limit (max 2 direct referrals)
       if (referringUser.referralCodeUsageLimit >= 2) {
         referringUser.referralCodeIsValid = false;
         await referringUser.save();
@@ -65,10 +68,11 @@ exports.createNewUser = async (req, res) => {
       referringUser.referralCount = (referringUser.referralCount || 0) + 1;
       await referringUser.save();
 
-      referredByUserId = referringUser._id;
+      referredByUserId = referringUser._id || null;
     }
+   
 
-    // Create new user
+    // 🔹 Create new user
     const user = new User({
       userName: username,
       email,
@@ -78,12 +82,14 @@ exports.createNewUser = async (req, res) => {
       referredByUserId,
     });
     await user.save();
-
-    // Add new user to referrer's referredPeople
+ console.log("until here")
+    // 🔹 Place referral into the tree
     if (referringUser) {
-      const referralStructures = await referralStructure(referringUser.referralCode, user._id);
-      if (!referralStructures.success) {
-        return res.status(400).json({ message: referralStructures.message });
+      try {
+        await placeReferral({ parentId: referringUser._id, childId: user._id });
+      } catch (err) {
+        console.error("Error placing referral:", err);
+        return res.status(500).json({ message: "Error updating referral structure" });
       }
     }
 
@@ -100,6 +106,7 @@ exports.createNewUser = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 
@@ -120,7 +127,7 @@ exports.userLogin = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid username/email or password' });
     }
-
+      const userStart=await startUpProcessCheck(user._id)
     // Generate JWT token
     const userToken = jwt.sign(
       { userName: user.userName,userId: user._id, role: user.role ,referralCode: user.referralCode },
@@ -136,6 +143,7 @@ exports.userLogin = async (req, res) => {
     // Send JSON response with token and user info
     res.json({
       token: userToken,
+      startUpProcess:userStart,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
