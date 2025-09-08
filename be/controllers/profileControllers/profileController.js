@@ -325,27 +325,26 @@ exports.getProfileDetail = async (req, res) => {
 exports.getAdminProfileDetail = async (req, res) => {
   try {
     const adminId = req.Id || req.body.adminId;
-
     if (!adminId) {
-      return res.status(400).json({ success: false, message: "Admin ID is required" });
+      return res.status(400).json({ message: "adminId is required" });
     }
-
-    const admin = await Admin.findById(adminId)
-      .select("userName email adminType")
+ 
+    // ---- Fetch profile and populate admin info ----
+    const profile = await Profile.findOne({ adminId })
+      .populate("adminId", "userName email role") // populate basic admin info
       .lean();
-
-    if (!admin) {
-      return res.status(404).json({ success: false, message: "Admin not found" });
+ 
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
     }
-
-    return res.status(200).json({ success: true, admin });
-  } catch (err) {
-    console.error("Error fetching admin profile:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Cannot fetch admin profile",
-      error: err.message
+ 
+    return res.status(200).json({
+      message: "Admin profile fetched successfully",
+      profile,
     });
+  } catch (error) {
+    console.error("Error fetching admin profile:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
