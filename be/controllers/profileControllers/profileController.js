@@ -32,7 +32,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
     }
 
     // ✅ Validate request
-    const errors = validateUserProfileUpdate(req);
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ message: "Validation failed", errors: errors.array() });
     }
@@ -105,26 +105,20 @@ exports.userProfileDetailUpdate = async (req, res) => {
 };
 
 
-exports.adminProfileDetailUpdate =async (req, res) => {
+exports.adminProfileDetailUpdate =  async (req, res) => {
     try {
-      // ---- Check validation errors ----
-      const errors = validateUserProfileUpdate(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
       const adminId = req.Id || req.body.adminId;
       if (!adminId) {
         return res.status(400).json({ message: "adminId is required" });
       }
 
-      // ---- Fetch admin and check role ----
-      const admin = await Admin.findById(adminId).lean();
-      if (!admin) return res.status(404).json({ message: "Admin not found" });
-      if (admin.role !== "Admin")
-        return res.status(403).json({ message: "Access denied: Not Admin" });
+      // ---- Check validation errors ----
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "Validation failed", errors: errors.array() });
+      }
 
-      // ---- Prepare update data ----
+      // ---- Allowed fields for profile update ----
       const allowedFields = [
         "phoneNumber",
         "bio",
@@ -140,7 +134,7 @@ exports.adminProfileDetailUpdate =async (req, res) => {
       ];
 
       const updateData = {};
-      allowedFields.forEach(field => {
+      allowedFields.forEach((field) => {
         if (req.body[field] !== undefined) updateData[field] = req.body[field];
       });
 
@@ -161,8 +155,8 @@ exports.adminProfileDetailUpdate =async (req, res) => {
 
       // ---- Handle username uniqueness ----
       if (userName) {
-        const existingUser = await Admin.findOne({ userName }).lean();
-        if (existingUser && existingUser._id.toString() !== adminId.toString()) {
+        const existing = await Admin.findOne({ userName }).lean();
+        if (existing && existing._id.toString() !== adminId.toString()) {
           return res.status(400).json({ message: "Username already exists" });
         }
 
@@ -170,13 +164,13 @@ exports.adminProfileDetailUpdate =async (req, res) => {
           adminId,
           { userName, profileSettings: profile._id },
           { new: true }
-        );
+        ).lean();
 
         profile.userName = userName;
         await profile.save();
       }
 
-      // ---- Populate profile for response ----
+      // ---- Populate linked admin info ----
       const populatedProfile = await Profile.findById(profile._id)
         .populate("adminId", "userName email role")
         .lean();
@@ -202,7 +196,7 @@ exports.childAdminProfileDetailUpdate =   async (req, res) => {
       }
 
       // ---- Check validation errors ----
-      const errors = validateUserProfileUpdate(req);
+      const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ message: "Validation failed", errors: errors.array() });
       }
@@ -331,7 +325,7 @@ exports.getAdminProfileDetail = async (req, res) => {
  
     // ---- Fetch profile and populate admin info ----
     const profile = await Profile.findOne({ adminId })
-      .populate("adminId", "userName email role") // populate basic admin info
+      .populate("userId") // populate basic admin info
       .lean();
  
     if (!profile) {
