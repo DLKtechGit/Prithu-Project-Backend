@@ -1,8 +1,12 @@
 const mongoose = require('mongoose');
 
 const childAdminSchema = new mongoose.Schema({
+
   // Inherit from Admin model
-  username: {
+
+  childAdminId: { type: String, unique: true },
+  
+  userName: {
     type: String,
     required: true,
     unique: true,
@@ -31,8 +35,8 @@ const childAdminSchema = new mongoose.Schema({
   
   childAdminType: {
     type: String,
-    enum: ['child_admin', 'sub_admin', 'limited_admin'],
-    default: 'child_admin'
+    enum: ['Child_Admin', 'sub_admin', 'limited_admin'],
+    default: 'Child_Admin'
   },
   
   // Permission inheritance from parent

@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const otpStore=new Map();
+const ChildAdmin=require('../../models/childAdminModel')
 
 
 // Create nodemailer transporter
@@ -18,38 +19,79 @@ const transporter = nodemailer.createTransport({
 // Register New Admin
 exports.newAdmin = async (req, res) => {
   try {
-    const { username, email, password,adminType} = req.body;
-    
-    console.log({ username, email, password,})
-    // Check if username or email already exists
-    if (await Admin.findOne({ userName:username })) {
-      return res.status(400).json({ error: 'Username already exists' });
-    }
-    if (await Admin.findOne({ email:email })) {
-      return res.status(400).json({ error: 'Email already registered' });
+    const { username, email, password, adminType } = req.body;
+    const parentAdminId = req.Id||null; // from auth middleware (always available)
+
+    // ✅ Check if username or email already exists
+    const existingUser = await Admin.findOne({
+      $or: [{ userName: username }, { email }]
+    });
+    if (existingUser) {
+      return res.status(400).json({
+        error:
+          existingUser.userName === username
+            ? "Username already exists"
+            : "Email already registered"
+      });
     }
 
-    // Hash password
+    // ✅ Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create new admin
+    // ✅ Create new admin
     const admin = new Admin({
-        userName:username,
-        email,
-        passwordHash,
-        adminType:adminType,
-
+      userName: username,
+      email,
+      passwordHash,
+      adminType
     });
-
     await admin.save();
 
-    res.status(201).json({
-      message: 'Admin registered successfully',
+    // ✅ Handle Child Admin case
+    if (adminType === "Child_Admin") {
+      // Generate unique ChildAdminId
+      const lastChild = await ChildAdmin.findOne().sort({ createdAt: -1 });
+      let newIdNumber = 1;
+
+      if (lastChild?.childAdminId) {
+        newIdNumber = parseInt(lastChild.childAdminId.replace("CA", "")) + 1;
+      }
+
+      const childAdminId = "CA" + String(newIdNumber).padStart(4, "0"); // e.g. CA0001
+
+      const childAdmin = new ChildAdmin({
+        childAdminId,
+        userId: admin._id,
+        inheritedPermissions: [], // default empty permissions
+        parentAdminId: parentAdminId || null
+      });
+      await childAdmin.save();
+
+      return res.status(201).json({
+        message: "Child Admin registered successfully",
+        childAdminId: childAdmin.childAdminId,
+        adminId: admin._id,
+        username: admin.userName,
+        email: admin.email,
+        adminType: admin.adminType,
+        parentAdminId: childAdmin.parentAdminId
+      });
+    }
+
+    // ✅ For Master/Other Admin
+    return res.status(201).json({
+      message: "Admin registered successfully",
+      adminId: admin._id,
+      username: admin.userName,
+      email: admin.email,
+      adminType: admin.adminType
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error creating new admin:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
+
 
 // Admin Login
 exports.adminLogin = async (req, res) => {

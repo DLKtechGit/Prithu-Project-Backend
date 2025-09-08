@@ -15,7 +15,7 @@ exports.auth = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
 
     // Attach info to request object
-     req.Id = decoded.userId; // Use lowercase 'id' for consistency
+     req.Id = decoded.userId || null; // Use lowercase 'id' for consistency
     req.role = decoded.role;
     req.accountId = decoded.accountId || null;
     req.userName = decoded.userName || null; 

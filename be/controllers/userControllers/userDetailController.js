@@ -1,136 +1,140 @@
 
 const Users = require("../../models/userModels/userModel")
-const UserFeedCategory = require("../../models/userModels/userCatogorySchema")
+const ProfileSettings=require("../../models/profileSettingModel")
+const UserLanguage=require('../../models/userModels/userLanguageModel')
 
 
-exports.getUserdetailWithId = async (req, res) => {
+exports.getUserDetailWithId = async (req, res) => {
   try {
-    const userId = req.Id || req.body.userId; // Get user ID from auth middleware
+    const userId = req.Id || req.body.userId; // from auth middleware or body
     if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
     }
-    const user = await Users.findById(userId); 
+
+    // ✅ Fetch user (only necessary fields)
+    const user = await Users.findById(userId)
+      .select("name email phone role createdAt")
+      .lean();
+
     if (!user) {
-      return res.status(400).json({ message: "User Details not Found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json({ user });
+    // ✅ Fetch profile settings
+    const profile = await ProfileSettings.findOne({ userId })
+      .select("bio avatar theme notifications")
+      .lean();
+
+    // ✅ Fetch language preference
+    const language = await UserLanguage.findOne({ userId })
+      .select("appLanguageCode appNativeCode feedLanguageCode feedNativeCode")
+      .lean();
+
+    // ✅ Merge results into one response
+    const userDetails = {
+      ...user,
+      profile: profile || {},
+      language: language || { appLanguageCode: "en", feedLanguageCode: "en" }
+    };
+
+    return res.status(200).json({ success: true, user: userDetails });
   } catch (err) {
-    res.status(500).json({ message: "Cannot Fetch User Details", error: err });
+    console.error("Error fetching user details:", err);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Cannot fetch user details", 
+      error: err.message 
+    });
   }
 };
 
 
-
-
-exports.userSelectCategory = async (req, res) => {
+// Set or update App Language
+exports.setAppLanguage = async (req, res) => {
   try {
-    const { categoryIds } = req.body; // Expecting array of categoryIds
     const userId = req.Id || req.body.userId;
+    const { code, native } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ message: "User ID is required" });
-    }
-    if (!categoryIds || !Array.isArray(categoryIds) || categoryIds.length === 0) {
-      return res.status(400).json({ message: "At least one Category ID is required" });
+    if (!userId || !code) {
+      return res.status(400).json({ message: "userId and appLanguageCode are required" });
     }
 
-    // Ensure user document exists (upsert)
-    let userFeedCategory = await UserFeedCategory.findOneAndUpdate(
+    const updated = await UserLanguage.findOneAndUpdate(
       { userId },
-      { $setOnInsert: { userId, categories: [] } },
-      { upsert: true, new: true }
-    );
+      { appLanguageCode: code, appNativeCode: native },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
 
-    // Get existing categoryIds in user document
-    const existingIds = userFeedCategory.categories.map(cat => cat.categoryId.toString());
+    return res.status(200).json({ success: true, appLanguage: updated.appLanguageCode });
+  } catch (err) {
+    console.error("Error setting app language:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
-    // Separate new vs existing
-    const toActivate = categoryIds.filter(id => existingIds.includes(id));
-    const toInsert = categoryIds.filter(id => !existingIds.includes(id));
+// Get App Language
+exports.getAppLanguage = async (req, res) => {
+  try {
+    const userId = req.Id || req.query.userId;
+    if (!userId) return res.status(400).json({ message: "User ID is required" });
 
-    // 1. Activate already existing ones
-    if (toActivate.length > 0) {
-      await UserFeedCategory.updateOne(
-        { userId },
-        {
-          $set: { updatedAt: new Date() },
-          $set: {
-            "categories.$[elem].isActive": true,
-            "categories.$[elem].followedAt": new Date(),
-          },
-        },
-        {
-          arrayFilters: [{ "elem.categoryId": { $in: toActivate } }],
-        }
-      );
-    }
+    const userLang = await UserLanguage.findOne({ userId }).select("appLanguageCode appNativeCode").lean();
 
-    // 2. Push new ones
-    if (toInsert.length > 0) {
-      const newCats = toInsert.map(id => ({
-        categoryId: id,
-        isActive: true,
-        followedAt: new Date(),
-      }));
-
-      await UserFeedCategory.updateOne(
-        { userId },
-        {
-          $push: { categories: { $each: newCats } },
-          $set: { updatedAt: new Date() },
-        }
-      );
-    }
-
-    // Fetch final updated doc
-    const updatedDoc = await UserFeedCategory.findOne({ userId }).lean();
-
-    res.status(200).json({
-      message: "Categories selected successfully",
-      data: updatedDoc,
+    return res.status(200).json({
+      success: true,
+      appLanguage: userLang ? userLang.appLanguageCode : "en",
+      native: userLang ? userLang.appNativeCode : "English"
     });
   } catch (err) {
-    console.error("Error selecting categories:", err);
-    res.status(500).json({
-      message: "Error selecting categories",
-      error: err.message,
-    });
+    console.error("Error fetching app language:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-exports.userAppLanguage = async (req, res) => {
+
+
+// Set or update Feed Language
+exports.setFeedLanguage = async (req, res) => {
   try {
-    const userId = req.userId; // Get user ID from auth middleware
-    const { language } = req.body;
-    if (!language) {
-      return res.status(400).json({ message: "Language is required" });
+    const userId = req.Id || req.body.userId;
+    const { code, native } = req.body;
+
+    if (!userId || !code) {
+      return res.status(400).json({ message: "userId and feedLanguageCode are required" });
     }
 
-    // Create a new language entry in the database
-    const newLanguage = await Users.findByIdAndUpdate(userId, { appLanguage: language }, { new: true });
+    const updated = await UserLanguage.findOneAndUpdate(
+      { userId },
+      { feedLanguageCode: code, feedNativeCode: native },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
 
-    res.status(201).json({ message: "Language created successfully", newLanguage });
+    return res.status(200).json({ success: true, feedLanguage: updated.feedLanguageCode });
   } catch (err) {
-    res.status(500).json({ message: "Error creating language", error: err });
+    console.error("Error setting feed language:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-exports.userFeedLanguage = async (req, res) => {
+// Get Feed Language
+exports.getFeedLanguage = async (req, res) => {
   try {
-    const userId = req.userId; // Get user ID from auth middleware
-    const { language } = req.body; 
-    if (!language) {
-      return res.status(400).json({ message: "Language is required" });
-    } 
-    // Create a new language entry in the database
-    const newLanguage = await Users.findByIdAndUpdate(userId, { feedLanguage: language }, { new: true });
+    const userId = req.Id || req.query.userId;
+    if (!userId) return res.status(400).json({ message: "User ID is required" });
 
-    res.status(201).json({ message: "Feed Language created successfully", newLanguage });
+    const userLang = await UserLanguage.findOne({ userId }).select("feedLanguageCode feedNativeCode").lean();
+
+    return res.status(200).json({
+      success: true,
+      feedLanguage: userLang ? userLang.feedLanguageCode : "en",
+      native: userLang ? userLang.feedNativeCode : "English"
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error creating feed language", error: err });
+    console.error("Error fetching feed language:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
 
 
 

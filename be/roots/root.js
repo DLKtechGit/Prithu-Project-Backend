@@ -58,11 +58,16 @@ const {
 } = require('../controllers/authenticationControllers/adminAuthController');
 
 const {
-  getUserdetailWithId,
-  userSelectCategory,
-  userAppLanguage,
-  userFeedLanguage,
+  getUserDetailWithId,
+  setAppLanguage ,
+  getAppLanguage,
+  getFeedLanguage,
+  setFeedLanguage,
 } = require('../controllers/userControllers/userDetailController');
+
+const{
+  userSelectCategory,
+}=require('../controllers/userControllers/userCategoryController')
 
 const {
   getCategoryWithId,
@@ -72,9 +77,11 @@ const {
 
 const {
   userProfileDetailUpdate,
-  getProfileDetail,
+  getUserProfileDetail,
   childAdminProfileDetailUpdate,
   adminProfileDetailUpdate,
+  getAdminProfileDetail,
+  getChildAdminProfileDetail,
 } = require('../controllers/profileControllers/profileController');
 
 const {
@@ -97,6 +104,7 @@ const {
 const{
   getLeftReferrals,
   getRightReferrals,
+  getUserReferralTree,
 }=require('../controllers/userControllers/userRefferalController')
 
 
@@ -187,10 +195,12 @@ router.post('/auth/user/reset-password', userPasswordReset);
 router.post('/auth/user/logout', userlogOut);
 
 /* --------------------- Fresh Users API --------------------- */
-router.post('/app/language', auth, userAppLanguage);
-router.post('/feed/language', auth, userFeedLanguage);
-router.get('/get/category', getAllCategories);
-router.post('/user/select/category', userSelectCategory);
+router.post('/app/language', auth, setAppLanguage );
+router.get('/get/app/language',auth,getAppLanguage);
+router.post('/feed/language', auth, setFeedLanguage );
+router.get('/feed/language', auth, getFeedLanguage );
+router.get('/get/content/category', getContentCategories);
+router.post('/user/select/category',auth, userSelectCategory);
 
 /* --------------------- User Feed Actions --------------------- */
 router.post('/user/feed/like', likeFeed);
@@ -210,9 +220,9 @@ router.post('/user/cancel/subscription', auth, cancelSubscription);
 router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 
-/* --------------------- User Subscription --------------------- */
-router.get('/user/left/tree/referals',getLeftReferrals);
-router.get('/user/right/tree/referals',getRightReferrals);
+// /* --------------------- User Subscription --------------------- */
+// router.get('/user/left/tree/referals',getUserReferralTree);
+router.get('/user/right/tree/referals',getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 
@@ -224,6 +234,7 @@ router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
 router.post('/user/profile/detail/update',upload.single('file'), userProfileDetailUpdate);
+router.get('/get/profile/detail',auth,getUserProfileDetail);
 
 /* --------------------- Creator Feed API --------------------- */
 router.post("/creator/feed/upload", upload.single('file'), creatorFeedUpload);
@@ -244,7 +255,7 @@ router.post('/creator/feed/share', auth, shareFeed);
 router.get('/creator/get/followers', getCreatorFollowers);
 
 /* --------------------- Admin Authentication --------------------- */
-router.post('/auth/admin/register', newAdmin);
+router.post('/auth/admin/register',auth,newAdmin);
 router.post('/auth/admin/login', adminLogin);
 router.post('/auth/admin/sent-otp', adminSendOtp);
 router.post('/auth/exist/admin/verify-otp', existAdminVerifyOtp);
@@ -253,6 +264,7 @@ router.post('/auth/admin/reset-password', adminPasswordReset);
 
 /* --------------------- Admin Profile API --------------------- */
 router.post('/admin/profile/detail/update',auth, upload.single('file'), adminProfileDetailUpdate);
+router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
 router.post('/admin/feed', upload.single('file'), adminFeedUpload);
@@ -270,7 +282,7 @@ router.get('/admin/getall/subscriptions', getAllPlans);
 
 /* --------------------- Admin User API --------------------- */
 router.get('/admin/getall/users', getAllUserDetails);
-router.get('/admin/get/user/:id', getUserdetailWithId);
+router.get('/admin/get/user/profile/detail',auth,getUserDetailWithId)
 router.get("/admin/users/status", getUserStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
 
@@ -283,6 +295,7 @@ router.get('/admin/getall/creators', getAllCreatorDetails);
 
 /* --------------------- Child Follower API --------------------- */
 router.post('/child/admin/profile/detail/update',auth, upload.single('file'), childAdminProfileDetailUpdate);
+router.get('/get/child/admin/profile',auth,getChildAdminProfileDetail)
 
 
 /* --------------------- Feeds API --------------------- */
@@ -293,8 +306,7 @@ router.post('/child/admin/profile/detail/update',auth, upload.single('file'), ch
 router.get('/all/catagories', getContentCategories);
 router.get('/all/catagories/:id', getCategoryWithId);
 
-/* --------------------- Profile Settings --------------------- */
-router.get('/get/profile/detail', getProfileDetail);
+
 
 /* --------------------- Account API --------------------- */
 router.post('/account/add', auth, addAccount);

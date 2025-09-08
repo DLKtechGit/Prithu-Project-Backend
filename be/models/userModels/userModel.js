@@ -21,10 +21,6 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
 
-    // Language Preferences
-    appLanguage: { type: String, default: null },
-    feedLanguage: { type: String, default: null },
-
     // Roles & Accounts
     roles: { type: [String], enum: ["User", "Business", "Creator"], default: ["User"] },
     activeAccount: { type: mongoose.Schema.Types.ObjectId, ref: "Account" },
@@ -32,9 +28,6 @@ const UserSchema = new mongoose.Schema(
 
     // Profile References
     profileSettings: { type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings" },
-    userProfile: { type: mongoose.Schema.Types.ObjectId, ref: "UserProfile" },
-    creatorProfile: { type: mongoose.Schema.Types.ObjectId, ref: "CreatorProfile" },
-    businessProfile: { type: mongoose.Schema.Types.ObjectId, ref: "BusinessProfile" },
 
     // Referral System
     referralCode: { type: String, unique: true, index: true },
@@ -51,9 +44,6 @@ const UserSchema = new mongoose.Schema(
     directReferralIncompleteLeft: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     directReferralFinishersRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     directReferralIncompleteRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-
-    // Preferences
-    categories: { type: [String], default: [] },
 
     // Devices & Session Info
     devices: { type: [DeviceSchema], default: [] },

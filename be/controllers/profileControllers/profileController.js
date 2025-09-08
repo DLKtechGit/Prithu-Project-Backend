@@ -3,6 +3,7 @@ const Profile = require("../../models/profileSettingModel");
 const User = require("../../models/userModels/userModel");
 const Admin = require("../../models/adminModels/adminModel");
 const ChildAdmin = require("../../models/childAdminModel");
+const UserLanguage=require('../../models/userModels/userLanguageModel')
 
 // ✅ Validation middleware
 exports.validateUserProfileUpdate = [
@@ -300,6 +301,7 @@ exports.getProfileDetail = async (req, res) => {
       message: "Profile fetched successfully",
       profile,
       userName: profile.userId?.userName || null,
+      userEmail:profile.userId?.email || null
     });
   } catch (error) {
     console.error("Error fetching profile:", error);
@@ -307,6 +309,115 @@ exports.getProfileDetail = async (req, res) => {
   }
 };
 
+
+
+exports.getAdminProfileDetail = async (req, res) => {
+  try {
+    const adminId = req.Id || req.body.adminId;
+
+    if (!adminId) {
+      return res.status(400).json({ success: false, message: "Admin ID is required" });
+    }
+
+    const admin = await Admin.findById(adminId)
+      .select("userName email adminType")
+      .lean();
+
+    if (!admin) {
+      return res.status(404).json({ success: false, message: "Admin not found" });
+    }
+
+    return res.status(200).json({ success: true, admin });
+  } catch (err) {
+    console.error("Error fetching admin profile:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Cannot fetch admin profile",
+      error: err.message
+    });
+  }
+};
+
+
+
+exports.getChildAdminProfileDetail = async (req, res) => {
+  try {
+    const adminId = req.Id || req.body.adminId;
+
+    if (!adminId) {
+      return res.status(400).json({ success: false, message: "Child Admin ID is required" });
+    }
+
+    // ✅ Fetch child admin + admin details together
+    const [childAdmin, admin] = await Promise.all([
+      ChildAdmin.findOne({ userId: adminId }).lean(),
+      Admin.findById(adminId).select("userName email adminType").lean()
+    ]);
+
+    if (!childAdmin || !admin) {
+      return res.status(404).json({ success: false, message: "Child admin not found" });
+    }
+
+    // ✅ Fetch parent admin only if exists
+    const parentAdmin = childAdmin.parentAdminId
+      ? await Admin.findById(childAdmin.parentAdminId).select("userName email").lean()
+      : null;
+
+    return res.status(200).json({
+      success: true,
+      childAdmin: {
+        ...admin,
+        childAdmin,
+        parentAdmin
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching child admin profile:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Cannot fetch child admin profile",
+      error: err.message
+    });
+  }
+};
+
+
+exports.getUserProfileDetail = async (req, res) => {
+  try {
+    const userId = req.Id || req.body.userId; // from auth middleware
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required" });
+    }
+
+    // ✅ Run queries in parallel
+    const [user, profile, languages] = await Promise.all([
+      User.findById(userId).select("userName email").lean(),
+      Profile.findOne({ userId }).lean(),
+      UserLanguage.find({ userId, active: true }).select("appLanguageCode feedLanguageCode").lean()
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        ...user,
+        profile,
+        languages
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching user profile:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Cannot fetch user profile",
+      error: err.message
+    });
+  }
+};
 
 
 
