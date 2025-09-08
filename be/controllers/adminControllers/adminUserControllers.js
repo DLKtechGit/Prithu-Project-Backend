@@ -16,40 +16,41 @@ async function getPresenceService() {
   return makePresenceService(client, User, { to: () => {} });
 }
 
-// Get all users
-exports.getAllUsers = async (req, res) => {
-  try {
-  
-    const presenceService = await getPresenceService();
-    const users = await User.find({}, "-passwordHash").lean();
-    const onlineIds = new Set(await presenceService.listOnlineUsers());
-    const mapped = users.map((u) => ({
-      ...u,
-      isOnline: onlineIds.has(u._id.toString()),
-      lastSeenAt: u.lastSeenAt,
-    }));
-    res.json(mapped);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "err" });
-  }
-};
-
 // Get single user detail
-exports.getUserDetail = async (req, res) => {
+exports.getUserProfileDetail = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const presenceService = await getPresenceService();
+    const {userId }=req.body; // from auth middleware
 
-    const user = await User.findById(userId, "-passwordHash").lean();
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required" });
+    }
 
-    const onlineIds = new Set(await presenceService.listOnlineUsers());
-    user.isOnline = onlineIds.has(user._id.toString());
-    res.json(user);
+    // ✅ Run queries in parallel
+    const [user, profile, languages] = await Promise.all([
+      User.findById(userId).select("userName email").lean(),
+      Profile.findOne({ userId }).lean(),
+      UserLanguage.find({ userId, active: true }).select("appLanguageCode feedLanguageCode").lean()
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        ...user,
+        profile,
+        languages
+      }
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "err" });
+    console.error("Error fetching user profile:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Cannot fetch user profile",
+      error: err.message
+    });
   }
 };
 

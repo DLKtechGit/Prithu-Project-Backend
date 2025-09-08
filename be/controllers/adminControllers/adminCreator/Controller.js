@@ -1,7 +1,3 @@
-const Account = require("../../models/accountSchemaModel");
-const Feed = require("../../models/feedModel");
-
-
 exports.getAllCreatorDetails = async (req, res) => {
   console.log("working");
 

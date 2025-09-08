@@ -29,9 +29,9 @@ exports.getAllCategories = async (req, res) => {
 
 exports.getCategoryWithId = async (req, res) => {
   try {
-    const  categoriesId  = req.params.id;
+    const  {categoryId}  = req.body;
     
-    const categoriesFeeds = await Categories.findById(categoriesId).populate('feedIds');
+    const categoriesFeeds = await Categories.findById(categoryId).populate('feedIds');
 
     if (!categoriesFeeds) {
       return res.status(400).json({ message: 'Videos not Found in this categories' });

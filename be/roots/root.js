@@ -134,6 +134,7 @@ const {
 
 const {
   adminFeedUpload,
+  childAdminFeedUpload,
 } = require('../controllers/adminControllers/adminfeedController');
 
 const {
@@ -165,18 +166,20 @@ const {
 // Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, './uploads/images');
-    } else if (file.mimetype.startsWith('video/')) {
-      cb(null, './uploads/videos');
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, "./uploads/images");
+    } else if (file.mimetype.startsWith("video/")) {
+      cb(null, "./uploads/videos");
     } else {
-      cb(new Error('Unknown fieldname'), null);
+      cb(new Error("Only image/video files are allowed"), null);
     }
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '_' + file.originalname);
+    const sanitizedName = file.originalname.replace(/\s+/g, "_");
+    cb(null, Date.now() + "_" + sanitizedName);
   }
 });
+
 const upload = multer({ storage });
 
 // Serve static files from 'uploads' folder
@@ -267,7 +270,7 @@ router.post('/admin/profile/detail/update',auth, upload.single('file'), adminPro
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
-router.post('/admin/feed', upload.single('file'), adminFeedUpload);
+router.post('/admin/feed', upload.array('file'),auth, adminFeedUpload);
 
 /* --------------------- Admin Category API --------------------- */
 router.post('/admin/feed/category', adminAddCategory);
@@ -288,14 +291,17 @@ router.get("/admin/user/detail/by-date", getUsersByDate);
 
 /* --------------------- Admin User API --------------------- */
 router.get('/admin/getall/creators', getAllCreatorDetails);
-// router.get('/admin/get/user/:id', getUserdetailWithId);
+router.get('/admin/get/user/detail', getUserProfileDetail);
 // router.get("/admin/users/status", getUserStatus);
 // router.get("/admin/user/detail/by-date", getUsersByDate);
 
 
-/* --------------------- Child Follower API --------------------- */
+/* --------------------- Child Admin Profile API --------------------- */
 router.post('/child/admin/profile/detail/update',auth, upload.single('file'), childAdminProfileDetailUpdate);
 router.get('/get/child/admin/profile',auth,getChildAdminProfileDetail)
+
+/* --------------------- Child Admin Feed API --------------------- */
+router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 
 
 /* --------------------- Feeds API --------------------- */

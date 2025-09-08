@@ -1,4 +1,4 @@
-const UserFeedCategory=require('../../models/userModels/userCategotyModel')
+const UserCategory=require('../../models/userModels/userCategotyModel')
 
 exports.userSelectCategory = async (req, res) => {
   try {

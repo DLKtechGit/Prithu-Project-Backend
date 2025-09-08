@@ -8,7 +8,7 @@ const otpStore=new Map();
 const StoreUserDevice=require('../../models/devicetrackingModel');
 const makeSessionService = require("../../services/sessionService");
 const {placeReferral}=require('../../middlewares/referralCount');
-const {startUpProcessCheck}=require('../../middlewares/userStartUpProcessHelper')
+const {startUpProcessCheck}=require('../../middlewares/services/User Services/userStartUpProcessHelper')
 
 // const sessionService = makeSessionService(User,StoreUserDevice);
 
