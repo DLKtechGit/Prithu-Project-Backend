@@ -237,7 +237,7 @@ router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
 router.post('/user/profile/detail/update',upload.single('file'), userProfileDetailUpdate);
-router.get('/get/profile/detail',auth,getUserProfileDetail);
+router.get('/get/profile/detail',getUserProfileDetail);
 
 /* --------------------- Creator Feed API --------------------- */
 router.post("/creator/feed/upload", upload.single('file'), creatorFeedUpload);
@@ -266,7 +266,7 @@ router.post('/auth/new/admin/verify-otp', newAdminVerifyOtp);
 router.post('/auth/admin/reset-password', adminPasswordReset);
 
 /* --------------------- Admin Profile API --------------------- */
-router.post('/admin/profile/detail/update',auth, upload.single('file'), adminProfileDetailUpdate);
+router.post('/admin/profile/detail/update',auth,upload.single('file'), adminProfileDetailUpdate);
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
