@@ -92,6 +92,7 @@ const {
   getUsersByDate,
   getAllUserDetails,
   getAnaliticalCountforUser,
+  getUserLikedFeeds,
 } = require('../controllers/adminControllers/adminUserControllers');
 
 const {
@@ -241,7 +242,7 @@ router.get('/user/right/tree/referals',getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
-router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
+router.get('/get/all/feeds/user',getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
 router.post('/user/follow/creator', auth, followAccount);
@@ -309,7 +310,7 @@ router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountfo
 // router.get('/admin/user/followers/count')
 // router.get('/admin/user/followers/detail')
 // router.get('/admin/user/interest/categories')
-// router.get('/amin/user/likes')
+ router.get('/amin/user/likes/:userId',getUserLikedFeeds)
 // router.get('/amin/user/share')
 // router.get('/amin/user/dwonload')
 // router.get('/amin/user/comment')

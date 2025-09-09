@@ -14,21 +14,17 @@ const Categories=require('../../models/categorySchema');
 exports.creatorFeedUpload = async (req, res) => {
   try {
     const accountId = req.accountId || req.body.accountId;
-
-    const creatorRole=req.role  || req.body.role;
-
-    const userId = req.Id || req.body.userId;     // optional fallback
-      console.log("accountId",accountId)
-    const userRole= await Account.findById(accountId).select('type');
-    if(!userRole || userRole.type !=='Creator'){
-      return res.status(403).json({ message: "Only Creators can upload feeds" });
-    }
-
-    console.log("req.file",req.file)
-
+    const creatorRole = req.role || req.body.role;
+    const userId = req.Id || req.body.userId;
 
     if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Ensure account is Creator
+    const userRole = await Account.findById(accountId).select("type");
+    if (!userRole || userRole.type !== "Creator") {
+      return res.status(403).json({ message: "Only Creators can upload feeds" });
     }
 
     const activeAccount = await getActiveCreatorAccount(userId);
@@ -38,13 +34,16 @@ exports.creatorFeedUpload = async (req, res) => {
 
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    const { language, category, type } = req.body;
-    if (!language || !category || !type) {
-      return res.status(400).json({ message: "Language, category, and type are required" });
+    const { language, categoryId, type } = req.body;
+    if (!language || !categoryId || !type) {
+      return res.status(400).json({ message: "Language, categoryId, and type are required" });
     }
 
-    // Capitalize first letter of category
-    const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+    // Validate categoryId exists
+    const categoryDoc = await Categories.findById(categoryId);
+    if (!categoryDoc) {
+      return res.status(400).json({ message: "Invalid categoryId" });
+    }
 
     // Prevent duplicate upload
     const newFileName = path.basename(req.file.path);
@@ -60,34 +59,20 @@ exports.creatorFeedUpload = async (req, res) => {
       }
     }
 
-    // Save feed with formatted category name
+    // Save feed with categoryId reference
     const newFeed = new Feed({
       type,
       language,
-      category: formattedCategory, // string with first letter capital
+      category: categoryId, // now storing ID instead of string
       duration: videoDuration,
       createdByAccount: activeAccount._id,
       contentUrl: req.file.path,
-      roleRef: creatorRole, // from fetched user role
+      roleRef: creatorRole,
     });
     await newFeed.save();
 
-    // Check if category exists (case-insensitive)
-    let categoryDoc = await Categories.findOne({
-      name: { $regex: `^${formattedCategory}$`, $options: "i" },
-    });
-
-    if (categoryDoc) {
-      // Category exists → push feed ID
-      await Categories.findByIdAndUpdate(categoryDoc._id, { $push: { feedIds: newFeed._id } });
-    } else {
-      // Category doesn't exist → create new category with feed ID
-      const newCategory = new Categories({
-        name: formattedCategory,
-        feedIds: [newFeed._id],
-      });
-      await newCategory.save();
-    }
+    // Push feed ID into category's feedIds array
+    await Categories.findByIdAndUpdate(categoryId, { $push: { feedIds: newFeed._id } });
 
     return res.status(201).json({ message: "Feed created successfully", feed: newFeed });
   } catch (error) {
@@ -95,6 +80,7 @@ exports.creatorFeedUpload = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
 

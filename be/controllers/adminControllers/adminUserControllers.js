@@ -193,3 +193,54 @@ exports.getAnaliticalCountforUser = async (req, res) => {
     });
   }
 };
+
+
+exports.getUserLikedFeeds = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+
+    const userLikedFeeds = await mongoose.connection
+      .collection("UserFeedActions")
+      .aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+        { $unwind: "$likedFeeds" },
+        {
+          $lookup: {
+            from: "Feeds",
+            localField: "likedFeeds.feedId",
+            foreignField: "_id",
+            as: "feedInfo"
+          }
+        },
+        { $unwind: "$feedInfo" },
+        {
+          $project: {
+            _id: 0,
+            feedId: "$likedFeeds.feedId",
+            likedAt: "$likedFeeds.likedAt",
+            "feedInfo.type": 1,
+            "feedInfo.language": 1,
+            "feedInfo.category": 1,
+            "feedInfo.contentUrl": 1,
+            "feedInfo.createdAt": 1
+          }
+        }
+      ])
+      .toArray();
+
+    res.status(200).json({
+      message: "User liked feeds fetched successfully",
+      count: userLikedFeeds.length,
+      data: userLikedFeeds
+    });
+  } catch (err) {
+    console.error("Error fetching user liked feeds:", err);
+    res.status(500).json({
+      message: "Error fetching user liked feeds",
+      error: err.message
+    });
+  }
+};
