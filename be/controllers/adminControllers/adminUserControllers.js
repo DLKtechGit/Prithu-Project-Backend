@@ -1,7 +1,8 @@
 const Users = require("../../models/userModels/userModel.js");
 const makePresenceService = require("../../services/presenseService.js");
 const { initRedis } = require("../../radisClient/intialRadis.js");
-const {userTimeAgo}=require('../../middlewares/userStatusTimeAgo.js')
+const {userTimeAgo}=require('../../middlewares/userStatusTimeAgo.js');
+const mongoose=require("mongoose")
 
 
 let redisClient;
@@ -151,12 +152,44 @@ exports.getAllUserDetails = async (req, res) => {
 
 
 
-exports.getAnaliticalCountforUser=async(req,res)=>{
-  try
- {
-  const userId=req.params.userId;
- }catch
- {
-  
- }
-}
+exports.getAnaliticalCountforUser = async (req, res) => {
+  try {
+    let userId = req.params.userId;
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+    userId = userId.trim();
+
+    const objectId = new mongoose.Types.ObjectId(userId);
+
+    // 🔹 Fetch the UserActions doc for this user
+    const userAction = await mongoose.connection
+      .collection("UserFeedActions")
+      .findOne({ userId: objectId });
+
+    // 🔹 Count comments from UserComments
+    const commentCount = await mongoose.connection
+      .collection("UserComments")
+      .countDocuments({ userId: objectId });
+
+    // 🔹 Build response
+    const result = {
+      likes: userAction?.likedFeeds?.length || 0,
+      saves: userAction?.savedFeeds?.length || 0,
+      shares: userAction?.sharedFeeds?.length || 0,
+      downloads: userAction?.downloadedFeeds?.length || 0,
+      comments: commentCount || 0,
+    };
+
+    res.status(200).json({
+      message: "Analytical count fetched successfully",
+      data: result,
+    });
+  } catch (err) {
+    console.error("Error fetching analytical counts:", err);
+    res.status(500).json({
+      message: "Error fetching analytical counts",
+      error: err.message,
+    });
+  }
+};

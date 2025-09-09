@@ -91,6 +91,7 @@ const {
   getUserStatus,
   getUsersByDate,
   getAllUserDetails,
+  getAnaliticalCountforUser,
 } = require('../controllers/adminControllers/adminUserControllers');
 
 const {
