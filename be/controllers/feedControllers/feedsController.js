@@ -16,7 +16,7 @@ const  UserCategory=require('../../models/userModels/userCategotyModel.js')
 
 
 
-exports.getAllFeeds = async (req, res) => {
+exports.getAllFeedsByUserId = async (req, res) => {
   try {
     // ✅ Pick userId from token or body
     const rawUserId = req.Id || req.body.userId;

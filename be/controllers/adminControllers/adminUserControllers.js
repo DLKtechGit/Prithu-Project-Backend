@@ -147,3 +147,16 @@ exports.getAllUserDetails = async (req, res) => {
     res.status(500).json({ message: "Cannot fetch user details", error: err.message });
   }
 };
+
+
+
+
+exports.getAnaliticalCountforUser=async(req,res)=>{
+  try
+ {
+  const userId=req.params.userId;
+ }catch
+ {
+  
+ }
+}

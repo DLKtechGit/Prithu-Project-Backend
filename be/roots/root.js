@@ -45,7 +45,7 @@ const {
 const {
   feedsWatchByUser,
   mostWatchedFeeds,
-  getAllFeeds,
+  getAllFeedsByUserId,
   getFeedsByAccountId,
   getUserInfoAssociatedFeed,
 } = require('../controllers/feedControllers/feedsController');
@@ -239,7 +239,8 @@ router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 router.get('/user/right/tree/referals',getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
-
+/*---------------------- User Feed API -------------------------*/
+router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
 router.post('/user/follow/creator', auth, followAccount);
@@ -256,7 +257,7 @@ router.post("/creator/feed/schedule", auth, upload.single('file'), creatorFeedSc
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
 router.get('/creator/getall/feeds', auth, getCreatorFeeds);
 router.get('/creator/get/feed/category', getAllCategories);
-router.get('/get/all/feed/for/Creator',getFeedsByAccountId)
+router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId)
 
 /* --------------------- Cretor Feed Actions --------------------- */
 router.post('/creator/feed/like', likeFeed);
@@ -303,7 +304,7 @@ router.get('/admin/getall/users', getAllUserDetails);
 router.get('/admin/get/user/profile/detail',auth,getUserDetailWithId)
 router.get("/admin/users/status", getUserStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
-// router.get ('/admin/user/action/intersection/count')
+router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountforUser)
 // router.get('/admin/user/followers/count')
 // router.get('/admin/user/followers/detail')
 // router.get('/admin/user/interest/categories')
@@ -328,7 +329,6 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 
 
 /* --------------------- Feeds API --------------------- */
- router.get('/all/feeds',getAllFeeds);
  router.get('/get/creator/detail/feed/:feedId',getUserInfoAssociatedFeed)
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
