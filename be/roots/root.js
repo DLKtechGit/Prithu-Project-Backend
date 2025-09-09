@@ -46,6 +46,8 @@ const {
   feedsWatchByUser,
   mostWatchedFeeds,
   getAllFeeds,
+  getFeedsByAccountId,
+  getUserInfoAssociatedFeed,
 } = require('../controllers/feedControllers/feedsController');
 
 const {
@@ -82,6 +84,7 @@ const {
   adminProfileDetailUpdate,
   getAdminProfileDetail,
   getChildAdminProfileDetail,
+  
 } = require('../controllers/profileControllers/profileController');
 
 const {
@@ -163,6 +166,12 @@ const {
   getAllAccounts
 } = require('../controllers/accountController');
 
+
+const{
+  creatorSelectCategory,
+  creatorUnSelectCategory,
+}=require('../controllers/creatorControllers/creatorCategoryController')
+
 // Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -212,6 +221,8 @@ router.post('/user/feed/save', auth, saveFeed);
 router.post('/user/feed/download', auth, downloadFeed);
 router.post('/user/feed/comment', postComment);
 router.post('/user/feed/share', auth, shareFeed);
+// router.post('/user/not/intrested')
+// router.post('/user/interested')
 
 /* --------------------- User Feed Get Actions --------------------- */
 router.get('/user/saved/feeds', auth, getUserSavedFeeds);
@@ -244,7 +255,8 @@ router.post("/creator/feed/upload", upload.single('file'), creatorFeedUpload);
 router.post("/creator/feed/schedule", auth, upload.single('file'), creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
 router.get('/creator/getall/feeds', auth, getCreatorFeeds);
-router.get('/creator/get/feed/category', getContentCategories);
+router.get('/creator/get/feed/category', getAllCategories);
+router.get('/get/all/feed/for/Creator',getFeedsByAccountId)
 
 /* --------------------- Cretor Feed Actions --------------------- */
 router.post('/creator/feed/like', likeFeed);
@@ -253,9 +265,12 @@ router.post('/creator/feed/save', auth, saveFeed);
 router.post('/creator/feed/download', auth, downloadFeed);
 router.post('/creator/feed/comment', postComment);
 router.post('/creator/feed/share', auth, shareFeed);
+// router.post('/user/not/intrested')
+// router.post('/user/interested')
 
 /* --------------------- Creator Follower API --------------------- */
 router.get('/creator/get/followers', getCreatorFollowers);
+
 
 /* --------------------- Admin Authentication --------------------- */
 router.post('/auth/admin/register',auth,newAdmin);
@@ -288,8 +303,16 @@ router.get('/admin/getall/users', getAllUserDetails);
 router.get('/admin/get/user/profile/detail',auth,getUserDetailWithId)
 router.get("/admin/users/status", getUserStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
+// router.get ('/admin/user/action/intersection/count')
+// router.get('/admin/user/followers/count')
+// router.get('/admin/user/followers/detail')
+// router.get('/admin/user/interest/categories')
+// router.get('/amin/user/likes')
+// router.get('/amin/user/share')
+// router.get('/amin/user/dwonload')
+// router.get('/amin/user/comment')
 
-/* --------------------- Admin User API --------------------- */
+/* --------------------- Admin Creator API --------------------- */
 router.get('/admin/getall/creators', getAllCreatorDetails);
 router.get('/admin/get/user/detail', getUserProfileDetail);
 // router.get("/admin/users/status", getUserStatus);
@@ -305,7 +328,8 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 
 
 /* --------------------- Feeds API --------------------- */
- router.get('/all/feeds', getAllFeeds);
+ router.get('/all/feeds',getAllFeeds);
+ router.get('/get/creator/detail/feed/:feedId',getUserInfoAssociatedFeed)
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
 /* --------------------- Tags API --------------------- */

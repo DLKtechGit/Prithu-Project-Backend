@@ -38,15 +38,6 @@ exports.newAdmin = async (req, res) => {
     // ✅ Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // ✅ Create new admin
-    const admin = new Admin({
-      userName: username,
-      email,
-      passwordHash,
-      adminType
-    });
-    await admin.save();
-
     // ✅ Handle Child Admin case
     if (adminType === "Child_Admin") {
       // Generate unique ChildAdminId
@@ -61,31 +52,20 @@ exports.newAdmin = async (req, res) => {
 
       const childAdmin = new ChildAdmin({
         childAdminId,
-        userId: admin._id,
         inheritedPermissions: [], // default empty permissions
         parentAdminId: parentAdminId || null
       });
-      await childAdmin.save();
-
-      return res.status(201).json({
-        message: "Child Admin registered successfully",
-        childAdminId: childAdmin.childAdminId,
-        adminId: admin._id,
-        username: admin.userName,
-        email: admin.email,
-        adminType: admin.adminType,
-        parentAdminId: childAdmin.parentAdminId
-      });
-    }
+      await childAdmin.save()
 
     // ✅ For Master/Other Admin
     return res.status(201).json({
       message: "Admin registered successfully",
-      adminId: admin._id,
-      username: admin.userName,
-      email: admin.email,
-      adminType: admin.adminType
+      adminId: childAdmin._id,
+      username: childAdmin.userName,
+      email: childAdmin.email,
+      adminType: childAdmin.adminType
     });
+  }
   } catch (error) {
     console.error("Error creating new admin:", error);
     return res.status(500).json({ error: error.message });
@@ -97,47 +77,55 @@ exports.newAdmin = async (req, res) => {
 exports.adminLogin = async (req, res) => {
   try {
     const { identifier, password } = req.body;
-  
+    if (!identifier || !password) {
+      return res.status(400).json({ error: "Identifier and password required" });
+    }
 
-    // Find admin by userName or email
-    const admin = await Admin.findOne({
-      $or: [{ userName: identifier }, { email: identifier }],
+    // 1️⃣ Try to find in Admin
+    let admin = await Admin.findOne({
+      $or: [{ userName: identifier }, { email: identifier }]
     });
-    // if (!admin.userName) {
-    //   return res.status(400).json({ error: 'Invalid userName' });
-    // }
 
+    let payload = {};
 
+    if (admin) {
+      // Validate password
+      const isMatch = await bcrypt.compare(password, admin.passwordHash);
+      if (!isMatch) return res.status(400).json({ error: "Invalid password" });
 
-    if(!admin.email)
-    {
-        res.status(400).json({error:'Invalid Email'})
-    }
-
-    const isMatch = await bcrypt.compare(password, admin.passwordHash);
-
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid password' });
-    }
-
-    const userToken = jwt.sign(
-      { userId:admin._id ,userName: admin.userName, role: admin.adminType },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    res.json({
-      token: userToken,
-      admin: {
-        adminId: admin._id,
-        userName: admin. userName,
+      payload = {
         role: admin.adminType,
-      },
-    });
+        userName: admin.userName,
+        userId: admin._id
+      };
+
+    } else {
+      // 2️⃣ Try to find in Child_Admin
+      const child = await ChildAdmin.findOne({ email: identifier }).lean();
+      if (!child) return res.status(400).json({ error: "Invalid credentials" });
+
+      // Validate password
+      const isMatch = await bcrypt.compare(password, child.passwordHash);
+      if (!isMatch) return res.status(400).json({ error: "Invalid password" });
+
+      payload = {
+        role: "Child_Admin",
+        userName: child.userName,
+        userId: child.childAdminId
+      };
+    }
+
+    // 3️⃣ Generate JWT
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    res.json({ token, admin: payload ,role:"Child_Admin"});
+
   } catch (error) {
+    console.error("Admin login error:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Request Password Reset OTP
 exports.adminSendOtp = async (req, res) => {

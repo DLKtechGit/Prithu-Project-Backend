@@ -23,6 +23,11 @@ exports.validateUserProfileUpdate = [
   body("privacy").optional().isObject(),
 ];
 
+
+
+exports.userNameChecking=async (req,res)=>{
+  
+}
 // ✅ Update profile controller
 exports.userProfileDetailUpdate = async (req, res) => {
   try {
