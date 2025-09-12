@@ -107,7 +107,7 @@ exports.getAccountFollowers = async (req, res) => {
 
 
 exports.getCreatorFollowers = async (req, res) => {
-  const { creatorId } = req.body;
+  const  creatorId  = req.accountId;
 
   console.log("Received creatorId:", creatorId);
 

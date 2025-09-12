@@ -27,7 +27,6 @@ const transporter = nodemailer.createTransport({
 exports.createNewUser = async (req, res) => {
   try {
     const { username, email, password, referralCode } = req.body;
-    console.log({ username, email, password, referralCode })
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -56,21 +55,27 @@ exports.createNewUser = async (req, res) => {
         return res.status(400).json({ message: "Referral code invalid." });
       }
 
-      // Check usage limit (max 2 direct referrals)
-      if (referringUser.referralCodeUsageLimit >= 2) {
-        referringUser.referralCodeIsValid = false;
-        await referringUser.save();
+      // Atomic increment + validation
+      const updatedReferrer = await User.findOneAndUpdate(
+        { _id: referringUser._id, referralCodeUsageLimit: { $lt: 2 } },
+        {
+          $inc: { referralCodeUsageLimit: 1, referralCount: 1 },
+        },
+        { new: true }
+      );
+
+      if (!updatedReferrer) {
         return res.status(400).json({ message: "Referral code is no longer valid." });
       }
 
-      // Increment referral usage
-      referringUser.referralCodeUsageLimit += 1;
-      referringUser.referralCount = (referringUser.referralCount || 0) + 1;
-      await referringUser.save();
+      // Invalidate code if usage limit reached
+      if (updatedReferrer.referralCodeUsageLimit >= 2) {
+        updatedReferrer.referralCodeIsValid = false;
+        await updatedReferrer.save();
+      }
 
-      referredByUserId = referringUser._id || null;
+      referredByUserId = referringUser._id;
     }
-   
 
     // 🔹 Create new user
     const user = new User({
@@ -82,8 +87,8 @@ exports.createNewUser = async (req, res) => {
       referredByUserId,
     });
     await user.save();
- console.log("until here")
-    // 🔹 Place referral into the tree
+
+    // 🔹 Place referral in tree
     if (referringUser) {
       try {
         await placeReferral({ parentId: referringUser._id, childId: user._id });
@@ -106,6 +111,8 @@ exports.createNewUser = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 
 

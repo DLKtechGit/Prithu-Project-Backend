@@ -1,9 +1,9 @@
 const path = require("path");
 const UserFeedActions = require("../models/userFeedInterSectionModel");
 const Feed = require("../models/feedModel");
-const UserComment = require("../models/userModels/userCommentModel");
+const UserComment = require("../models/userCommentModel");
 const UserView = require("../models/userModels/userViewFeedsModel");
-const CommentLike = require("../models/userModels/commentsLikeModel");
+const CommentLike = require("../models/commentsLikeModel");
 
 // ---------------------- FEED LIKE ----------------------
 exports.creatorlikeFeed = async (req, res) => {

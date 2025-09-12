@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "MeetFlow",
+    "slug": "meetflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Prithu.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/Prithu.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.deepeshgour.meetflow",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.deepeshgour.meetflow"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6d99d8f2-794d-4466-9a10-db5ce4838d52"
+      }
+    },
+    "owner": "dlkreact"
+  }
+}

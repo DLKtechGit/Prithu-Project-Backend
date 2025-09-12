@@ -14,7 +14,7 @@ exports.adminFeedUpload = async (req, res) => {
       return res.status(201).json({
         message: "Feed uploaded successfully",
         feeds: [result.feed], // always return array
-        categories: [result.category],
+        categories: [result.categoryId],
         roleType: result.roleType
       });
     }

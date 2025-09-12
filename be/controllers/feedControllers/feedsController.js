@@ -8,21 +8,21 @@ const path=require('path');
 const Account =require("../../models/accountSchemaModel.js")
 const Admin=require("../../models/adminModels/adminModel.js")
 const mongoose = require("mongoose");
-const UserComment = require("../../models/userModels/userCommentModel.js");
+const UserComment = require("../../models/userCommentModel.js");
 const UserView = require("../../models/userModels/userViewFeedsModel.js");
-const CommentLike = require("../../models/userModels/commentsLikeModel.js");
+const CommentLike = require("../../models/commentsLikeModel.js");
 const UserLanguage=require('../../models/userModels/userLanguageModel.js');
-const  UserCategory=require('../../models/userModels/userCategotyModel.js')
+const  UserCategory=require('../../models/userModels/userCategotyModel.js');
+const ProfileSettings=require('../../models/profileSettingModel')
 
 
 
 exports.getAllFeedsByUserId = async (req, res) => {
   try {
-    // ✅ Pick userId from token or body
     const rawUserId = req.Id || req.body.userId;
     const userId = rawUserId ? new mongoose.Types.ObjectId(rawUserId) : null;
 
-    if(rawUserId){
+    if (!rawUserId) {
       return res.status(404).json({ message: "User ID Required " });
     }
 
@@ -31,7 +31,9 @@ exports.getAllFeedsByUserId = async (req, res) => {
     // 1️⃣ Get all feeds
     const feeds = await Feed.find().sort({ createdAt: -1 }).lean();
     if (!feeds.length) return res.status(404).json({ message: "No feeds found" });
+
     const feedIds = feeds.map(f => f._id);
+    const accountIds = feeds.map(f => f.createdByAccount);
 
     // 2️⃣ Aggregate global likes/downloads/shares
     const actions = await UserFeedActions.aggregate([
@@ -40,11 +42,11 @@ exports.getAllFeedsByUserId = async (req, res) => {
         $facet: {
           likes: [
             { $unwind: { path: "$likedFeeds", preserveNullAndEmptyArrays: true } },
-            { $group: { _id: "$likedFeeds", count: { $sum: 1 } } }
+            { $group: { _id: "$likedFeeds.feedId", count: { $sum: 1 } } }
           ],
           downloads: [
             { $unwind: { path: "$downloadedFeeds", preserveNullAndEmptyArrays: true } },
-            { $group: { _id: "$downloadedFeeds", count: { $sum: 1 } } }
+            { $group: { _id: "$downloadedFeeds.feedId", count: { $sum: 1 } } }
           ],
           shares: [
             { $unwind: { path: "$sharedFeeds", preserveNullAndEmptyArrays: true } },
@@ -69,13 +71,24 @@ exports.getAllFeedsByUserId = async (req, res) => {
       });
     }
 
-    // 3️⃣ Get current user actions (isLiked, isSaved)
+    // 3️⃣ Get current user actions (with timestamps, safe checks)
     let userActions = { likedFeeds: [], savedFeeds: [] };
     if (userId) {
       const uaDoc = await UserFeedActions.findOne({ userId }).lean();
       if (uaDoc) {
-        userActions.likedFeeds = (uaDoc.likedFeeds || []).map(f => f.toString());
-        userActions.savedFeeds = (uaDoc.savedFeeds || []).map(f => f.toString());
+        userActions.likedFeeds = (uaDoc.likedFeeds || [])
+          .filter(f => f.feedId)
+          .map(f => ({
+            feedId: f.feedId.toString(),
+            likedAt: f.likedAt || null
+          }));
+
+        userActions.savedFeeds = (uaDoc.savedFeeds || [])
+          .filter(f => f.feedId)
+          .map(f => ({
+            feedId: f.feedId.toString(),
+            savedAt: f.savedAt || null
+          }));
       }
     }
 
@@ -95,13 +108,39 @@ exports.getAllFeedsByUserId = async (req, res) => {
     const commentsMap = {};
     commentsAgg.forEach(c => { commentsMap[c._id.toString()] = c.count });
 
-    // 6️⃣ Build final response
+    // 6️⃣ Get Accounts → Profile Settings
+    const accounts = await Account.find(
+      { _id: { $in: accountIds } },
+      { _id: 1, userId: 1 }
+    ).lean();
+
+    const userIds = accounts.map(a => a.userId);
+
+    const profiles = await ProfileSettings.find(
+      { userId: { $in: userIds } },
+      { userName: 1, profileAvatar: 1, userId: 1 }
+    ).lean();
+
+    const accountToUserIdMap = {};
+    accounts.forEach(acc => { accountToUserIdMap[acc._id.toString()] = acc.userId.toString(); });
+
+    const userIdToProfileMap = {};
+    profiles.forEach(p => { userIdToProfileMap[p.userId.toString()] = p; });
+
+    // 7️⃣ Build final response
     const enrichedFeeds = feeds.map(feed => {
       const fid = feed._id.toString();
       const folder = feed.type === "video" ? "videos" : "images";
       const contentUrlFull = feed.contentUrl
         ? `${host}/uploads/${folder}/${path.basename(feed.contentUrl)}`
         : null;
+
+      const creatorUserId = accountToUserIdMap[feed.createdByAccount?.toString()] || null;
+      const profile = creatorUserId ? userIdToProfileMap[creatorUserId] : null;
+
+      // find timestamps if liked/saved
+      const likedAction = userActions.likedFeeds.find(f => f.feedId === fid);
+      const savedAction = userActions.savedFeeds.find(f => f.feedId === fid);
 
       return {
         feedId: fid,
@@ -115,8 +154,12 @@ exports.getAllFeedsByUserId = async (req, res) => {
         downloadsCount: downloadsCountMap[fid] || 0,
         viewsCount: viewsMap[fid] || 0,
         commentsCount: commentsMap[fid] || 0,
-        isLiked: userActions.likedFeeds.includes(fid),
-        isSaved: userActions.savedFeeds.includes(fid)
+        isLiked: !!likedAction,
+        isSaved: !!savedAction,
+        userName: profile ? profile.userName || "Unknown" : "Unknown",
+        profileAvatar: profile?.profileAvatar
+          ? `${host}/uploads/images/${path.basename(profile.profileAvatar)}`
+          : null
       };
     });
 
@@ -130,6 +173,8 @@ exports.getAllFeedsByUserId = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 
 exports.getFeedsByAccountId = async (req, res) => {
@@ -161,31 +206,37 @@ exports.getFeedsByAccountId = async (req, res) => {
     if (!feeds.length) return res.status(404).json({ message: "No feeds found" });
 
     const feedIds = feeds.map(f => f._id);
+    const accountIds = feeds.map(f => f.createdByAccount);
 
     // 5️⃣ Aggregate total likes, shares, downloads
     const actionsAgg = await UserFeedActions.aggregate([
-      { $match: { $or: [{ accountId: { $exists: true } }] } },
       { $project: { likedFeeds: 1, downloadedFeeds: 1, sharedFeeds: 1 } },
-      { $unwind: { path: "$likedFeeds", preserveNullAndEmptyArrays: true } },
-      { $unwind: { path: "$downloadedFeeds", preserveNullAndEmptyArrays: true } },
-      { $unwind: { path: "$sharedFeeds", preserveNullAndEmptyArrays: true } },
       {
-        $group: {
-          _id: null,
-          likesMap: { $push: "$likedFeeds" },
-          downloadsMap: { $push: "$downloadedFeeds" },
-          sharesMap: { $push: "$sharedFeeds.feedId" }
+        $facet: {
+          likes: [
+            { $unwind: { path: "$likedFeeds", preserveNullAndEmptyArrays: true } },
+            { $group: { _id: "$likedFeeds", count: { $sum: 1 } } }
+          ],
+          downloads: [
+            { $unwind: { path: "$downloadedFeeds", preserveNullAndEmptyArrays: true } },
+            { $group: { _id: "$downloadedFeeds", count: { $sum: 1 } } }
+          ],
+          shares: [
+            { $unwind: { path: "$sharedFeeds", preserveNullAndEmptyArrays: true } },
+            { $group: { _id: "$sharedFeeds.feedId", count: { $sum: 1 } } }
+          ]
         }
       }
     ]);
 
-    const data = actionsAgg[0] || {};
     const likesCount = {};
     const downloadsCount = {};
     const sharesCount = {};
-    (data.likesMap || []).forEach(f => { if (f) likesCount[f.toString()] = (likesCount[f.toString()] || 0) + 1 });
-    (data.downloadsMap || []).forEach(f => { if (f) downloadsCount[f.toString()] = (downloadsCount[f.toString()] || 0) + 1 });
-    (data.sharesMap || []).forEach(f => { if (f) sharesCount[f.toString()] = (sharesCount[f.toString()] || 0) + 1 });
+    if (actionsAgg[0]) {
+      (actionsAgg[0].likes || []).forEach(l => { if (l._id) likesCount[l._id.toString()] = l.count; });
+      (actionsAgg[0].downloads || []).forEach(d => { if (d._id) downloadsCount[d._id.toString()] = d.count; });
+      (actionsAgg[0].shares || []).forEach(s => { if (s._id) sharesCount[s._id.toString()] = s.count; });
+    }
 
     // 6️⃣ Get current account actions
     const userActionsDoc = await UserFeedActions.findOne({ accountId }).lean();
@@ -208,11 +259,32 @@ exports.getFeedsByAccountId = async (req, res) => {
     const commentsCount = {};
     commentsAgg.forEach(c => { commentsCount[c._id.toString()] = c.count });
 
-    // 9️⃣ Build final response
+    // 9️⃣ Get Accounts → Profile Settings
+    const accountsList = await Account.find(
+      { _id: { $in: accountIds } },
+      { _id: 1, userId: 1 }
+    ).lean();
+
+    const userIds = accountsList.map(a => a.userId);
+    const profiles = await ProfileSettings.find(
+      { userId: { $in: userIds } },
+      { userName: 1, profileAvatar: 1, userId: 1 }
+    ).lean();
+
+    const accountToUserId = {};
+    accountsList.forEach(acc => { accountToUserId[acc._id.toString()] = acc.userId.toString(); });
+
+    const userIdToProfile = {};
+    profiles.forEach(p => { userIdToProfile[p.userId.toString()] = p; });
+
+    // 🔟 Build final response
     const enrichedFeeds = feeds.map(feed => {
       const fid = feed._id.toString();
       const folder = feed.type === "video" ? "videos" : "images";
       const contentUrl = feed.contentUrl ? `${host}/uploads/${folder}/${path.basename(feed.contentUrl)}` : null;
+
+      const creatorUserId = accountToUserId[feed.createdByAccount?.toString()] || null;
+      const profile = creatorUserId ? userIdToProfile[creatorUserId] : null;
 
       return {
         feedId: fid,
@@ -226,7 +298,11 @@ exports.getFeedsByAccountId = async (req, res) => {
         viewsCount: viewsCount[fid] || 0,
         commentsCount: commentsCount[fid] || 0,
         isLiked: likedFeedIds.includes(fid),
-        isSaved: savedFeedIds.includes(fid)
+        isSaved: savedFeedIds.includes(fid),
+        userName: profile?.userName || "Unknown",
+        profileAvatar: profile?.profileAvatar
+          ? `${host}/uploads/avatars/${path.basename(profile.profileAvatar)}`
+          : null
       };
     });
 

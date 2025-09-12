@@ -4,13 +4,16 @@ const User = require("../../models/userModels/userModel");
 const Admin = require("../../models/adminModels/adminModel");
 const ChildAdmin = require("../../models/childAdminModel");
 const UserLanguage=require('../../models/userModels/userLanguageModel')
-const mongoose=require('mongoose')
+const mongoose=require('mongoose');
+const { calculateAge } = require("../../middlewares/helper/calculateAge");
+
 
 // ✅ Validation middleware
 exports.validateUserProfileUpdate = [
   body("phoneNumber").optional().isMobilePhone().withMessage("Invalid phone number"),
   body("bio").optional().isString(),
   body("maritalStatus").optional().isString(),
+   body("maritalDate").optional().isString(),
   body("dateOfBirth").optional().isISO8601().toDate(),
   body("profileAvatar").optional().isString(),
   body("userName").optional().isString(),
@@ -28,6 +31,10 @@ exports.validateUserProfileUpdate = [
 exports.userNameChecking=async (req,res)=>{
   
 }
+
+
+
+
 // ✅ Update profile controller
 exports.userProfileDetailUpdate = async (req, res) => {
   try {
@@ -51,6 +58,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
       "dateOfBirth",
       "maritalStatus",
       "theme",
+      "maritalDate",
       "language",
       "timezone",
       "details",
@@ -220,6 +228,7 @@ exports.childAdminProfileDetailUpdate = async (req, res) => {
       "displayName",
       "dateOfBirth",
       "maritalStatus",
+      "maritalDate",
       "theme",
       "language",
       "timezone",
@@ -303,7 +312,9 @@ exports.childAdminProfileDetailUpdate = async (req, res) => {
 exports.getUserProfileDetail = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
-    if (!userId) return res.status(400).json({ message: "User ID is required" });
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
 
     const profile = await Profile.findOne(
       { userId },
@@ -312,25 +323,38 @@ exports.getUserProfileDetail = async (req, res) => {
       .populate("userId", "userName email")
       .lean();
 
-    if (!profile) return res.status(404).json({ message: "Profile not found" });
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
 
-    const host = req.protocol + "://" + req.get("host");
+    const host = `${req.protocol}://${req.get("host")}`;
     const profileAvatarUrl = profile.profileAvatar
-      ? host + "/" + profile.profileAvatar.replace(/^\/+/, "")
+      ? `${host}/${profile.profileAvatar.replace(/^\/+/, "")}`
       : null;
+
+    const {
+      bio = null,
+      displayName = null,
+      maritalStatus = null,
+      phoneNumber = null,
+      dateOfBirth = null,
+      timezone = null,
+      userId: user = {},
+    } = profile;
 
     return res.status(200).json({
       message: "Profile fetched successfully",
       profile: {
-        bio: profile.bio || null,
-        displayName: profile.displayName || null,
-        maritalStatus: profile.maritalStatus || null,
-        phoneNumber: profile.phoneNumber || null,
-        dateOfBirth: profile.dateOfBirth || null,
-        userName: profile.userId?.userName || null,
+        bio,
+        displayName,
+        maritalStatus,
+        phoneNumber,
+        dateOfBirth,
+        age: calculateAge(dateOfBirth),
+        userName: user.userName || null,
+        userEmail: user.email || null,
         profileAvatar: profileAvatarUrl,
-        timezone: profile.timezone || null,
-        userEmail: profile.userId?.email || null,
+        timezone,
       },
     });
   } catch (error) {

@@ -40,6 +40,7 @@ const {
   creatorFeedDelete,
   getCreatorFeeds,
   creatorFeedScheduleUpload,
+  getCreatorPost,
 } = require('../controllers/feedControllers/creatorFeedController');
 
 const {
@@ -69,12 +70,15 @@ const {
 
 const{
   userSelectCategory,
+  userNotInterestedCategory,
+  userInterestedCategory,
 }=require('../controllers/userControllers/userCategoryController')
 
 const {
   getCategoryWithId,
   getAllCategories,
-  getContentCategories,
+  getUserContentCategories,
+
 } = require('../controllers/categoriesController');
 
 const {
@@ -97,7 +101,7 @@ const {
 
 const {
   likeFeed,
-  saveFeed,
+  toggleSaveFeed,
   downloadFeed,
   postComment,
   getUserSavedFeeds,
@@ -174,6 +178,14 @@ const{
   creatorUnSelectCategory,
 }=require('../controllers/creatorControllers/creatorCategoryController')
 
+const{
+  applyReferralCode,
+}=require('../controllers/userControllers/userReferralController')
+
+const{
+  getCommentsByFeed,
+}=require('../controllers/conmmentController')
+
 // Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -208,26 +220,31 @@ router.post('/auth/new/user/verify-otp', newUserVerifyOtp);
 router.post('/auth/user/reset-password', userPasswordReset);
 router.post('/auth/user/logout', userlogOut);
 
+/* --------------------- User Referral API Actions --------------------- */
+router.post('/user/later/referral',auth,applyReferralCode)
+
 /* --------------------- Fresh Users API --------------------- */
-router.post('/app/language', auth, setAppLanguage );
+router.post('/app/language', setAppLanguage );
 router.get('/get/app/language',auth,getAppLanguage);
-router.post('/feed/language', auth, setFeedLanguage );
+router.post('/feed/language', setFeedLanguage );
 router.get('/feed/language', auth, getFeedLanguage );
-router.get('/get/content/category', getContentCategories);
+router.get('/get/content/catagories', getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
+router.get('/get/user/content/catagories', getUserContentCategories);
 
 /* --------------------- User Feed Actions --------------------- */
-router.post('/user/feed/like', likeFeed);
+router.post('/user/feed/like',auth, likeFeed);
 router.post('/user/comment/like',commentLike);
-router.post('/user/feed/save', auth, saveFeed);
-router.post('/user/feed/download', auth, downloadFeed);
+router.post('/user/feed/save',auth, toggleSaveFeed);
+router.post('/user/feed/download', downloadFeed);
 router.post('/user/feed/comment', postComment);
-router.post('/user/feed/share', auth, shareFeed);
-// router.post('/user/not/intrested')
-// router.post('/user/interested')
+router.post('/user/feed/share',auth, shareFeed);
+router.post('/user/select/category',auth,userSelectCategory);
+router.post('/user/not/intrested',auth,userNotInterestedCategory);
+router.post('/user/interested/feed',auth,userInterestedCategory);
 
 /* --------------------- User Feed Get Actions --------------------- */
-router.get('/user/saved/feeds', auth, getUserSavedFeeds);
+router.get('/user/get/saved/feeds', getUserSavedFeeds);
 router.get('/user/saved/download', auth, getUserDownloadedFeeds);
 
 /* --------------------- User Subscription --------------------- */
@@ -242,7 +259,7 @@ router.get('/user/right/tree/referals',getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
-router.get('/get/all/feeds/user',getAllFeedsByUserId);
+router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
 router.post('/user/follow/creator', auth, followAccount);
@@ -250,29 +267,30 @@ router.post('/user/unfollow/creator', auth, unfollowAccount);
 router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
-router.post('/user/profile/detail/update',upload.single('file'), userProfileDetailUpdate);
-router.get('/get/profile/detail',getUserProfileDetail);
+router.post('/user/profile/detail/update',auth,upload.single('file'), userProfileDetailUpdate);
+router.get('/get/profile/detail',auth,getUserProfileDetail);
 
 /* --------------------- Creator Feed API --------------------- */
-router.post("/creator/feed/upload", upload.single('file'), creatorFeedUpload);
+router.post("/creator/feed/upload",auth, upload.single('file'), creatorFeedUpload);
 router.post("/creator/feed/schedule", auth, upload.single('file'), creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
-router.get('/creator/getall/feeds', auth, getCreatorFeeds);
+router.get('/creator/getall/feeds',auth,getCreatorFeeds);
+router.get('/creator/get/post',auth,getCreatorPost);
 router.get('/creator/get/feed/category', getAllCategories);
-router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId)
+router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId);
 
 /* --------------------- Cretor Feed Actions --------------------- */
-router.post('/creator/feed/like', likeFeed);
-router.post('/creator/comment/like',commentLike);
-router.post('/creator/feed/save', auth, saveFeed);
+router.post('/creator/feed/like', auth,likeFeed);
+router.post('/creator/comment/like',auth,commentLike);
+router.post('/creator/feed/save', auth, toggleSaveFeed);
 router.post('/creator/feed/download', auth, downloadFeed);
-router.post('/creator/feed/comment', postComment);
+router.post('/creator/feed/comment', auth,postComment);
 router.post('/creator/feed/share', auth, shareFeed);
 // router.post('/user/not/intrested')
 // router.post('/user/interested')
 
 /* --------------------- Creator Follower API --------------------- */
-router.get('/creator/get/followers', getCreatorFollowers);
+router.get('/creator/get/followers', auth,getCreatorFollowers);
 
 
 /* --------------------- Admin Authentication --------------------- */
@@ -288,7 +306,7 @@ router.post('/admin/profile/detail/update',auth,upload.single('file'), adminProf
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
-router.post('/admin/feed', upload.array('file'),auth, adminFeedUpload);
+router.post('/admin/feed', upload.array('file'),auth,adminFeedUpload);
 
 /* --------------------- Admin Category API --------------------- */
 router.post('/admin/feed/category', adminAddCategory);
@@ -334,15 +352,17 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
  router.get('/get/creator/detail/feed/:feedId',getUserInfoAssociatedFeed)
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
+/* --------------------- Feed For Comments API --------------------- */
+router.post('/get/comments/for/feed',getCommentsByFeed)
+
 /* --------------------- Tags API --------------------- */
-router.get('/all/catagories', getContentCategories);
 router.get('/all/catagories/:id', getCategoryWithId);
 
 
 
 /* --------------------- Account API --------------------- */
 router.post('/account/add', auth, addAccount);
-router.post('/account/switch/creator', switchToCreator);
+router.post('/account/switch/creator', auth,switchToCreator);
 router.post('/account/switch/user', auth, switchToUserAccount);
 router.post('/account/status', auth, checkAccountStatus);
 

@@ -7,6 +7,8 @@ const Account=require("../../models/accountSchemaModel");
 const {feedTimeCalculator}=require("../../middlewares/feedTimeCalculator");
 const {getActiveCreatorAccount}=require("../../middlewares/creatorAccountactiveStatus");
 const Categories=require('../../models/categorySchema');
+const User=require('../../models/userModels/userModel');
+const mongoose=require("mongoose")
 
 
  
@@ -32,7 +34,9 @@ exports.creatorFeedUpload = async (req, res) => {
       return res.status(403).json({ message: "Active Creator account required to upload feed" });
     }
 
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
 
     const { language, categoryId, type } = req.body;
     if (!language || !categoryId || !type) {
@@ -45,12 +49,14 @@ exports.creatorFeedUpload = async (req, res) => {
       return res.status(400).json({ message: "Invalid categoryId" });
     }
 
-    // Prevent duplicate upload
+    // Prevent duplicate file upload
     const newFileName = path.basename(req.file.path);
     const existFeed = await Feed.findOne({ contentUrl: { $regex: `${newFileName}$` } });
-    if (existFeed) return res.status(400).json({ message: "The file has already been uploaded" });
+    if (existFeed) {
+      return res.status(400).json({ message: "The file has already been uploaded" });
+    }
 
-    // Video duration check
+    // Video duration check (only for video type)
     let videoDuration = null;
     if (type === "video" && req.file.mimetype.startsWith("video/")) {
       videoDuration = await getVideoDurationInSeconds(req.file.path);
@@ -59,28 +65,33 @@ exports.creatorFeedUpload = async (req, res) => {
       }
     }
 
-    // Save feed with categoryId reference
+    // Create and save feed
     const newFeed = new Feed({
       type,
       language,
-      category: categoryId, // now storing ID instead of string
+      category: categoryId,
       duration: videoDuration,
       createdByAccount: activeAccount._id,
-      contentUrl: req.file.path,
+      contentUrl: req.file.path.replace(/\\/g, "/"), // ✅ normalize path
       roleRef: creatorRole,
     });
+
     await newFeed.save();
 
-    // Push feed ID into category's feedIds array
-    await Categories.findByIdAndUpdate(categoryId, { $push: { feedIds: newFeed._id } });
+    // Optional: push feedId into category (if you still want denormalized data)
+    await Categories.findByIdAndUpdate(categoryId, {
+      $push: { feedIds: newFeed._id },
+    });
 
-    return res.status(201).json({ message: "Feed created successfully", feed: newFeed });
+    return res.status(201).json({
+      message: "Feed created successfully",
+      feed: newFeed,
+    });
   } catch (error) {
     console.error("Error creating feed:", error);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 
 
 
@@ -165,13 +176,81 @@ exports.creatorFeedDelete = async (req, res) => {
 
 
 
+exports.getCreatorPost = async (req, res) => {
+  try {
+    const accountId = req.Id || req.body.accountId;
+    if (!accountId) {
+      return res.status(400).json({ message: "Account ID is required" });
+    }
+
+    // ✅ Fetch account
+    const account = await Account.findById(accountId).lean();
+    if (!account) {
+      return res.status(400).json({ message: "Account not found" });
+    }
+
+    // ✅ Ensure active creator account
+    const activeAccount = await getActiveCreatorAccount(account.userId);
+    if (!activeAccount) {
+      return res.status(403).json({
+        message: "Only active Creator account can fetch feeds",
+      });
+    }
+
+    const creatorId = activeAccount._id;
+
+    // ✅ Run queries in parallel (feeds + count)
+    const [feeds, feedCount] = await Promise.all([
+      Feed.find(
+        { createdByAccount: creatorId },
+        { contentUrl: 1, createdAt: 1 }
+      )
+        .sort({ createdAt: -1 })
+        .lean(),
+      Feed.countDocuments({ createdByAccount: creatorId })
+    ]);
+
+    if (!feeds || feeds.length === 0) {
+      return res.status(404).json({
+        message: "No feeds found for this creator",
+        feedCount: 0,
+        feeds: [],
+      });
+    }
+
+    const host = `${req.protocol}://${req.get("host")}`;
+    const feedsFormatted = feeds.map(feed => ({
+      feedId: feed._id,
+      contentUrl: `${host}/${feed.contentUrl}`,
+      timeAgo: feedTimeCalculator(feed.createdAt),
+    }));
+
+    return res.status(200).json({
+      message: "Creator feeds retrieved successfully",
+      feedCount, // ✅ optimized with countDocuments
+      feeds: feedsFormatted,
+    });
+
+  } catch (error) {
+    console.error("Error fetching creator feeds:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+
+
+
+
+
+
 exports.getCreatorFeeds = async (req, res) => {
   try {
-    const accountId = req.Id;
+    const accountId = req.accountId;
     if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
     }
-
+ 
     const activeAccount = await getActiveCreatorAccount(accountId);
     if (!activeAccount) {
       return res
@@ -179,20 +258,20 @@ exports.getCreatorFeeds = async (req, res) => {
         .json({ message: "Only active Creator account can fetch feeds" });
     }
     const creatorId = activeAccount._id;
-
+ 
     // ✅ Fetch feeds created by this creator account
     const feeds = await Feed.find({ createdByAccount: creatorId }).sort({ createdAt: -1 });
-
+ 
     if (!feeds || feeds.length === 0) {
       return res.status(404).json({ message: "No feeds found for this creator" });
     }
-
+ 
     // ✅ Add timeAgo property
     const feedsWithTimeAgo = feeds.map((feed) => ({
       ...feed.toObject(),
       timeAgo: feedTimeCalculator(feed.createdAt),
     }));
-
+ 
     return res.status(200).json({
       message: "Creator feeds retrieved successfully",
       count: feedsWithTimeAgo.length,
@@ -203,6 +282,7 @@ exports.getCreatorFeeds = async (req, res) => {
     return res.status(500).json({ message: "Server error", error });
   }
 };
+
 
 
 

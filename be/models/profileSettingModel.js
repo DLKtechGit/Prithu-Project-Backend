@@ -10,6 +10,7 @@ const ProfileSettingsSchema = new mongoose.Schema(
     userName: { type: String },
     bio: { type: String },
     dateOfBirth: { type: Date },
+    maritalDate:{type:Date},
     maritalStatus: { type: String },
     phoneNumber: { type: String },
     profileAvatar: { type: String },

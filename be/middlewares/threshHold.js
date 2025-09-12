@@ -1,8 +1,12 @@
-// adjust threshold logic here
-exports.computeThreshold=(level)=> {
-  // example: level1:50, level2:100, then double; you can change formula
-  if (level === 1) return 5;
-  if (level === 2) return 100;
-  return computeThreshold(level - 1) * 2; // or any sequence you want
+function computeThreshold(level) {
+  // relative level inside the tier (1–10)
+  const relativeLevel = ((level - 1) % 10) + 1;
+
+  // start of every tier → 2
+  if (relativeLevel === 1) return 2;
+
+  // doubling based on relative level
+  return Math.pow(2, relativeLevel);
 }
 
+exports.computeThreshold = computeThreshold;

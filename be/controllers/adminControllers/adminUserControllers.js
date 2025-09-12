@@ -2,6 +2,10 @@ const Users = require("../../models/userModels/userModel.js");
 const makePresenceService = require("../../services/presenseService.js");
 const { initRedis } = require("../../radisClient/intialRadis.js");
 const {userTimeAgo}=require('../../middlewares/userStatusTimeAgo.js');
+const UserFeedActions=require('../../models/userFeedInterSectionModel');
+const Account=require('../../models/accountSchemaModel');
+const ProfileSettings=require('../../models/profileSettingModel.js');
+const path=require('path')
 const mongoose=require("mongoose")
 
 
@@ -172,7 +176,7 @@ exports.getAnaliticalCountforUser = async (req, res) => {
       .collection("UserComments")
       .countDocuments({ userId: objectId });
 
-    // 🔹 Build response
+    // 🔹 Build response (count based on new object-array structure)
     const result = {
       likes: userAction?.likedFeeds?.length || 0,
       saves: userAction?.savedFeeds?.length || 0,
@@ -195,41 +199,83 @@ exports.getAnaliticalCountforUser = async (req, res) => {
 };
 
 
+
 exports.getUserLikedFeeds = async (req, res) => {
   try {
     const userId = req.params.userId;
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid userId" });
     }
 
-    const userLikedFeeds = await mongoose.connection
-      .collection("UserFeedActions")
-      .aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-        { $unwind: "$likedFeeds" },
-        {
-          $lookup: {
-            from: "Feeds",
-            localField: "likedFeeds.feedId",
-            foreignField: "_id",
-            as: "feedInfo"
-          }
-        },
-        { $unwind: "$feedInfo" },
-        {
-          $project: {
-            _id: 0,
-            feedId: "$likedFeeds.feedId",
-            likedAt: "$likedFeeds.likedAt",
-            "feedInfo.type": 1,
-            "feedInfo.language": 1,
-            "feedInfo.category": 1,
-            "feedInfo.contentUrl": 1,
-            "feedInfo.createdAt": 1
+    const host = `${req.protocol}://${req.get("host")}`;
+
+    const userLikedFeeds = await UserFeedActions.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      { $unwind: "$likedFeeds" },
+      // Lookup feed details
+      {
+        $lookup: {
+          from: "Feeds",
+          localField: "likedFeeds.feedId",
+          foreignField: "_id",
+          as: "feedInfo"
+        }
+      },
+      { $unwind: "$feedInfo" },
+      // Lookup creator account
+      {
+        $lookup: {
+          from: "Accounts",
+          localField: "feedInfo.createdByAccount",
+          foreignField: "_id",
+          as: "creatorAccount"
+        }
+      },
+      { $unwind: { path: "$creatorAccount", preserveNullAndEmptyArrays: true } },
+      // Lookup creator profile
+      {
+        $lookup: {
+          from: "ProfileSettings",
+          localField: "creatorAccount.userId",
+          foreignField: "userId",
+          as: "creatorProfile"
+        }
+      },
+      { $unwind: { path: "$creatorProfile", preserveNullAndEmptyArrays: true } },
+      // Project final fields
+      {
+        $project: {
+          _id: 0,
+          likedAt: "$likedFeeds.likedAt",
+          contentUrl: {
+            $concat: [
+              host,
+              "/uploads/",
+              { $cond: [{ $eq: ["$feedInfo.type", "video"] }, "videos/", "images/"] },
+              { $arrayElemAt: [{ $split: ["$feedInfo.contentUrl", "\\"] }, -1] }
+            ]
+          },
+          feedInfo: {
+            feedId: "$feedInfo._id",
+            type: "$feedInfo.type",
+            language: "$feedInfo.language",
+            category: "$feedInfo.category",
+            createdAt: "$feedInfo.createdAt",
+            createdBy: {
+              userName: { $ifNull: ["$creatorProfile.userName", "Unknown"] },
+              profileAvatar: {
+                $cond: [
+                  { $ifNull: ["$creatorProfile.profileAvatar", false] },
+                  { $concat: [host, "/uploads/avatars/", { $arrayElemAt: [{ $split: ["$creatorProfile.profileAvatar", "\\"] }, -1] }] },
+                  null
+                ]
+              }
+            }
           }
         }
-      ])
-      .toArray();
+      }
+    ]);
 
     res.status(200).json({
       message: "User liked feeds fetched successfully",
@@ -244,3 +290,5 @@ exports.getUserLikedFeeds = async (req, res) => {
     });
   }
 };
+
+

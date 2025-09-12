@@ -1,8 +1,13 @@
 const UserFeedActions = require("../../models/userFeedInterSectionModel.js");
 const Feeds = require("../../models/feedModel.js");
 const { getActiveUserAccount } = require('../../middlewares/creatorAccountactiveStatus.js');
-const UserComment =require("../../models/userModels/userCommentModel.js");
-const CommentLike = require("../../models/userModels/commentsLikeModel.js");
+const UserComment =require("../../models/userCommentModel.js");
+const CommentLike = require("../../models/commentsLikeModel.js");
+const path=require('path')
+const User=require('../../models/userModels/userModel');
+const mongoose = require("mongoose");
+const ProfileSettings=require('../../models/profileSettingModel');
+const { feedTimeCalculator } = require("../../middlewares/feedTimeCalculator");
 
 
 
@@ -10,24 +15,43 @@ exports.likeFeed = async (req, res) => {
   const userId = req.Id || req.body.userId;
   const feedId = req.body.feedId;
 
-  if (!userId || !feedId) return res.status(400).json({ message: "userId and feedId required" });
+  if (!userId || !feedId) {
+    return res.status(400).json({ message: "userId and feedId required" });
+  }
 
   try {
-    const result = await UserFeedActions.findOneAndUpdate(
-      { userId },
-      { $addToSet: { likedFeeds: feedId } }, // add if not exists
-      { upsert: true, new: true }
-    );
+    // Check if feed is already liked by this user
+    const existingAction = await UserFeedActions.findOne({
+      userId,
+      "likedFeeds.feedId": feedId
+    });
 
-    const isLiked = result.likedFeeds.includes(feedId);
+    let updatedDoc, message;
+
+    if (existingAction) {
+      // Unlike: remove the feed from likedFeeds
+      updatedDoc = await UserFeedActions.findOneAndUpdate(
+        { userId },
+        { $pull: { likedFeeds: { feedId } } },
+        { new: true }
+      );
+      message = "Unliked successfully";
+    } else {
+      // Like: add the feed with current timestamp
+      updatedDoc = await UserFeedActions.findOneAndUpdate(
+        { userId },
+        { $push: { likedFeeds: { feedId, likedAt: new Date() } } },
+        { upsert: true, new: true }
+      );
+      message = "Liked successfully";
+    }
 
     res.status(200).json({
-      message: isLiked ? "Liked successfully" : "Already liked",
-      liked: true,
-      likedFeeds: result.likedFeeds,
+      message,
+      likedFeeds: updatedDoc.likedFeeds
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error in likeFeed:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -35,31 +59,62 @@ exports.likeFeed = async (req, res) => {
 
 
 
-exports.saveFeed = async (req, res) => {
+
+
+
+
+exports.toggleSaveFeed = async (req, res) => {
   const userId = req.Id || req.body.userId;
-  const feedId = req.body.feedId;
+  const { feedId } = req.body;
 
-  if (!userId || !feedId) return res.status(400).json({ message: "userId and feedId required" });
+  if (!userId || !feedId) {
+    return res.status(400).json({ message: "userId and feedId required" });
+  }
 
   try {
-    const result = await UserFeedActions.findOneAndUpdate(
-      { userId },
-      { $addToSet: { savedFeeds: feedId } },
-      { upsert: true, new: true }
-    );
+    const feedObjectId = new mongoose.Types.ObjectId(feedId);
 
-    const isSaved = result.savedFeeds.includes(feedId);
+    // Check if the feed is already saved
+    const existingAction = await UserFeedActions.findOne({
+      userId,
+      "savedFeeds.feedId": feedObjectId,
+    });
+
+    let updatedDoc, message;
+
+    if (existingAction) {
+      // Already saved → remove the feed object
+      updatedDoc = await UserFeedActions.findOneAndUpdate(
+        { userId },
+        { $pull: { savedFeeds: { feedId: feedObjectId } } },
+        { new: true }
+      );
+      message = "Unsaved successfully";
+    } else {
+      // Not saved → push new feed object with timestamp
+      updatedDoc = await UserFeedActions.findOneAndUpdate(
+        { userId },
+        { $push: { savedFeeds: { feedId: feedObjectId, savedAt: new Date() } } },
+        { upsert: true, new: true }
+      );
+      message = "Saved successfully";
+    }
 
     res.status(200).json({
-      message: isSaved ? "Saved successfully" : "Already saved",
-      saved: true,
-      savedFeeds: result.savedFeeds,
+      message,
+      savedFeeds: updatedDoc.savedFeeds,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error in toggleSaveFeed:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+
+
+
+
 
 
 
@@ -71,94 +126,133 @@ exports.downloadFeed = async (req, res) => {
   if (!feedId) return res.status(400).json({ message: "feedId is required" });
 
   try {
-    // Record the download (always increment)
-    const download = await UserFeedActionInteraction.create({
-      userId,
-      feedId,
-      type: "download",
-      downloadedAt: new Date(),
-    });
+    // ✅ Record download (push every time with timestamp)
+    const updatedDoc = await UserFeedActions.findOneAndUpdate(
+      { userId },
+      { $push: { downloadedFeeds: { feedId, downloadedAt: new Date() } } },
+      { upsert: true, new: true }
+    );
 
-    // Fetch the feed to get the download link
-    const feed = await Feed.findById(feedId).select("contentUrl fileUrl downloadUrl");
+    // ✅ Fetch feed to get the download link
+    const feed = await Feeds.findById(feedId).select(
+      "contentUrl fileUrl downloadUrl"
+    );
     if (!feed) return res.status(404).json({ message: "Feed not found" });
+
+    // ✅ Generate proper absolute download link
+    const host = `${req.protocol}://${req.get("host")}`;
+    const downloadLink =
+      feed.downloadUrl
+        ? `${host}/${feed.downloadUrl}`
+        : feed.fileUrl
+        ? `${host}/${feed.fileUrl}`
+        : feed.contentUrl
+        ? `${host}/${feed.contentUrl}`
+        : null;
+
+    if (!downloadLink) {
+      return res.status(400).json({ message: "No downloadable link available" });
+    }
 
     res.status(201).json({
       message: "Download recorded successfully",
-      action: download,
-      downloadLink: feed.downloadUrl || feed.fileUrl || feed.contentUrl,
+      downloadedFeeds: updatedDoc.downloadedFeeds,
+      downloadLink,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error in downloadFeed:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 
 
 exports.shareFeed = async (req, res) => {
   const userId = req.Id || req.body.userId;
-  const { feedId, shareChannel, shareTarget } = req.body;
+  const { feedId } = req.body;
 
-  if (!userId || !feedId) return res.status(400).json({ message: "userId and feedId required" });
+  if (!userId || !feedId) {
+    return res.status(400).json({ message: "userId and feedId are required" });
+  }
 
   try {
-    const result = await UserFeedActions.findOneAndUpdate(
-      { userId },
-      {
-        $push: {
-          sharedFeeds: { feedId, shareChannel, shareTarget, sharedAt: new Date() }
-        }
-      },
-      { upsert: true, new: true }
-    );
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const feed = await Feeds.findById(feedId).lean();
+    if (!feed) return res.status(404).json({ message: "Feed not found" });
+
+    const host = `${req.protocol}://${req.get("host")}`;
+    const shareUrl = `${host}/feed/${feedId}?ref=${user.referralCode}`;
 
     res.status(200).json({
-      message: "Feed shared successfully",
-      sharedFeeds: result.sharedFeeds
+      message: "Share link generated",
+      shareUrl
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error generating share link:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
 
 
+
+
+
 exports.postComment = async (req, res) => {
-  const userId = req.Id || req.body.userId;
-  const { feedId, commentText, parentCommentId } = req.body;
-
-  if (!userId) return res.status(400).json({ message: "userId is required" });
-  if (!feedId) return res.status(400).json({ message: "feedId is required" });
-  if (!commentText) return res.status(400).json({ message: "commentText is required" });
-
   try {
-    // Optional: check if parentCommentId exists
-    if (parentCommentId) {
-      const parentComment = await UserComment.findById(parentCommentId);
-      if (!parentComment) {
-        return res.status(400).json({ message: "Parent comment not found" });
-      }
+    const userId = req.Id || req.body.userId;
+    const { feedId, commentText, parentCommentId } = req.body;
+
+    // 🔹 Validate input
+    if (!userId) return res.status(400).json({ message: "userId is required" });
+    if (!feedId) return res.status(400).json({ message: "feedId is required" });
+    if (!commentText?.trim()) {
+      return res.status(400).json({ message: "commentText is required" });
     }
 
-    const comment = await UserComment.create({
+    // 🔹 Optional: validate parent comment only if reply
+    if (parentCommentId && !(await UserComment.exists({ _id: parentCommentId }))) {
+      return res.status(400).json({ message: "Parent comment not found" });
+    }
+
+    // 🔹 Create new comment
+    const newComment = await UserComment.create({
       userId,
       feedId,
-      commentText,
-      parentCommentId: parentCommentId || null
+      commentText: commentText.trim(),
+      parentCommentId: parentCommentId || null,
+      createdAt: new Date(), // keep raw date in DB
     });
 
+    // 🔹 Fetch user profile (username & avatar)
+    const userProfile = await ProfileSettings.findOne({ userId })
+      .select("userName profileAvatar")
+      .lean();
+
+    const host = `${req.protocol}://${req.get("host")}`;
+
+    // 🔹 Format response
     res.status(201).json({
-      message: "Comment posted successfully",
-      comment
+      message: parentCommentId ? "Reply posted successfully" : "Comment posted successfully",
+      comment: {
+        ...newComment.toObject(),
+        timeAgo: feedTimeCalculator(newComment.createdAt), // format for frontend
+        username: userProfile?.userName || "Unknown User",
+        avatar: userProfile?.profileAvatar ? `${host}/${userProfile.profileAvatar}` : null,
+      },
     });
   } catch (err) {
     console.error("Error posting comment:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+
 
 
 exports.postView = async (req, res) => {
@@ -186,34 +280,72 @@ exports.postView = async (req, res) => {
 };
 
 exports.getUserSavedFeeds = async (req, res) => {
-  const userId = req.Id || req.body.userId;
-
-  if (!userId) return res.status(400).json({ message: "userId is required" });
-
   try {
-    const userActions = await UserFeedActions.findOne({ userId })
-      .populate("savedFeeds", "contentUrl fileUrl downloadUrl type") // select only URLs
-      .lean();
+    const userId = req.Id || req.body.userId;
 
-    if (!userActions || !userActions.savedFeeds.length) {
-      return res.status(404).json({ message: "No saved feeds found" });
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
     }
 
-    // Map to only URLs
-    const savedFeedUrls = userActions.savedFeeds.map(feed => {
-      const folder = feed.type === "video" ? "videos" : "images";
-      return feed.downloadUrl || feed.fileUrl || (feed.contentUrl ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(feed.contentUrl)}` : null);
-    }).filter(Boolean); // remove nulls
+    // Get host dynamically from request
+    const host = `${req.protocol}://${req.get("host")}`;
 
-    res.status(200).json({
-      message: "Saved feed URLs retrieved successfully",
-      savedFeedUrls
+    // 1️⃣ Get user's saved feeds
+    const userActions = await UserFeedActions.findOne({ userId }).lean();
+    if (!userActions) {
+      return res.status(404).json({ message: "No actions found for this user" });
+    }
+
+    const savedFeedIds = userActions.savedFeeds.map(feed => feed.feedId);
+    if (savedFeedIds.length === 0) {
+      return res.status(200).json({ savedFeeds: [] });
+    }
+
+    // 2️⃣ Fetch feed details
+    const feeds = await Feeds.find({ _id: { $in: savedFeedIds } })
+      .select("contentUrl type")
+      .lean();
+
+    // 3️⃣ Aggregate like counts for saved feeds
+    const likesAggregation = await UserFeedActions.aggregate([
+      { $unwind: "$likedFeeds" },
+      { $match: { "likedFeeds.feedId": { $in: savedFeedIds } } },
+      { 
+        $group: {
+          _id: "$likedFeeds.feedId",
+          likeCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 4️⃣ Map feed details with savedAt, likeCount, and full content URL
+    const result = feeds.map(feed => {
+      const savedInfo = userActions.savedFeeds.find(f => f.feedId.toString() === feed._id.toString());
+      const likeInfo = likesAggregation.find(like => like._id.toString() === feed._id.toString());
+
+      // Determine folder based on type
+      const folder = feed.type === "video" ? "videos" : "images";
+      const fullContentUrl = feed.contentUrl
+        ? `${host}/uploads/${folder}/${path.basename(feed.contentUrl)}`
+        : null;
+
+      return {
+        _id: feed._id,
+        contentUrl: fullContentUrl,
+        type: feed.type,
+        savedAt: savedInfo?.savedAt,
+        likeCount: likeInfo ? likeInfo.likeCount : 0
+      };
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
+
+    return res.status(200).json({ savedFeeds: result });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 exports.getUserDownloadedFeeds = async (req, res) => {
   const userId = req.Id || req.body.userId;
@@ -222,24 +354,41 @@ exports.getUserDownloadedFeeds = async (req, res) => {
 
   try {
     const userActions = await UserFeedActions.findOne({ userId })
-      .populate("downloadedFeeds", "contentUrl fileUrl downloadUrl type")
+      .populate("downloadedFeeds.feedId", "contentUrl fileUrl downloadUrl type")
       .lean();
 
     if (!userActions || !userActions.downloadedFeeds.length) {
       return res.status(404).json({ message: "No downloaded feeds found" });
     }
 
-    const downloadedFeedUrls = userActions.downloadedFeeds.map(feed => {
+    // Map with timestamp
+    const downloadedFeeds = userActions.downloadedFeeds.map(item => {
+      const feed = item.feedId;
+      if (!feed) return null;
+
       const folder = feed.type === "video" ? "videos" : "images";
-      return feed.downloadUrl || feed.fileUrl || (feed.contentUrl ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(feed.contentUrl)}` : null);
+      const url =
+        feed.downloadUrl ||
+        feed.fileUrl ||
+        (feed.contentUrl
+          ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
+          : null);
+
+      return {
+        feedId: feed._id,
+        url,
+        type: feed.type,
+        downloadedAt: item.downloadedAt, // ✅ include timestamp
+      };
     }).filter(Boolean);
 
     res.status(200).json({
-      message: "Downloaded feed URLs retrieved successfully",
-      downloadedFeedUrls
+      message: "Downloaded feeds retrieved successfully",
+      count: downloadedFeeds.length,
+      downloadedFeeds,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching downloaded feeds:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -252,24 +401,41 @@ exports.getUserLikedFeeds = async (req, res) => {
 
   try {
     const userActions = await UserFeedActions.findOne({ userId })
-      .populate("likedFeeds", "contentUrl fileUrl downloadUrl type")
+      .populate("likedFeeds.feedId", "contentUrl fileUrl downloadUrl type")
       .lean();
 
     if (!userActions || !userActions.likedFeeds.length) {
       return res.status(404).json({ message: "No liked feeds found" });
     }
 
-    const likedFeedUrls = userActions.likedFeeds.map(feed => {
+    // Map with timestamp
+    const likedFeeds = userActions.likedFeeds.map(item => {
+      const feed = item.feedId;
+      if (!feed) return null;
+
       const folder = feed.type === "video" ? "videos" : "images";
-      return feed.downloadUrl || feed.fileUrl || (feed.contentUrl ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(feed.contentUrl)}` : null);
+      const url =
+        feed.downloadUrl ||
+        feed.fileUrl ||
+        (feed.contentUrl
+          ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
+          : null);
+
+      return {
+        feedId: feed._id,
+        url,
+        type: feed.type,
+        likedAt: item.likedAt, // ✅ include timestamp
+      };
     }).filter(Boolean);
 
     res.status(200).json({
-      message: "Liked feed URLs retrieved successfully",
-      likedFeedUrls
+      message: "Liked feeds retrieved successfully",
+      count: likedFeeds.length,
+      likedFeeds,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching liked feeds:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -297,8 +463,9 @@ exports.commentLike = async (req, res) => {
       });
     }
 
-    // Like: create new
-    await CommentLike.create({ userId, commentId });
+    // Like: create new with timestamp
+    await CommentLike.create({ userId, commentId, likedAt: new Date() });
+
     const likeCount = await CommentLike.countDocuments({ commentId });
 
     res.status(201).json({
@@ -311,6 +478,7 @@ exports.commentLike = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 
