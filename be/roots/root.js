@@ -78,6 +78,7 @@ const {
   getCategoryWithId,
   getAllCategories,
   getUserContentCategories,
+  searchCategories,
 
 } = require('../controllers/categoriesController');
 
@@ -356,6 +357,7 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 router.post('/get/comments/for/feed',getCommentsByFeed)
 
 /* --------------------- Tags API --------------------- */
+router.post('/search/all/category',searchCategories)
 router.get('/all/catagories/:id', getCategoryWithId);
 
 

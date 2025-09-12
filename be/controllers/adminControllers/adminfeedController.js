@@ -1,6 +1,8 @@
 const FeedService = require("../../middlewares/services/AdminServices/adminUploadfileService");
 const ChildAdmin =require("../../models/childAdminModel")
 
+
+
 exports.adminFeedUpload = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
@@ -8,25 +10,55 @@ exports.adminFeedUpload = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
+    const { language, categoryId } = req.body;
+
+    // ✅ Validate language
+    if (!language) {
+      return res.status(400).json({ message: "Language is required" });
+    }
+
+    // ✅ Validate categoryId
+    if (!categoryId) {
+      return res.status(400).json({ message: "CategoryId is required" });
+    }
+
+    // ✅ Ensure category exists
+    const categoryDoc = await Category.findById(categoryId);
+    if (!categoryDoc) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
     // ✅ Single file upload
     if (req.file) {
-      const result = await FeedService.uploadFeed(req.body, req.file, userId);
+      const result = await FeedService.uploadFeed(
+        { ...req.body, language, categoryId },
+        req.file,
+        userId
+      );
+
       return res.status(201).json({
         message: "Feed uploaded successfully",
         feeds: [result.feed], // always return array
         categories: [result.categoryId],
-        roleType: result.roleType
+        language: result.language,
+        roleType: result.roleType,
       });
     }
 
     // ✅ Multiple files upload
     if (req.files && req.files.length > 0) {
-      const results = await FeedService.uploadFeedsMultiple(req.body, req.files, userId);
+      const results = await FeedService.uploadFeedsMultiple(
+        { ...req.body, language, categoryId },
+        req.files,
+        userId
+      );
+
       return res.status(201).json({
         message: "All feeds uploaded successfully",
         feeds: results.map(r => r.feed),
-        categories: results.map(r => r.category),
-        roleTypes: results.map(r => r.roleType)
+        categories: results.map(r => r.categoryId),
+        languages: results.map(r => r.language),
+        roleTypes: results.map(r => r.roleType),
       });
     }
 
@@ -37,6 +69,7 @@ exports.adminFeedUpload = async (req, res) => {
     return res.status(500).json({ message: error.message || "Server error" });
   }
 };
+
 
 
 
@@ -53,24 +86,54 @@ exports.childAdminFeedUpload = async (req, res) => {
       return res.status(403).json({ message: "Only Child Admins can upload feeds" });
     }
 
+    const { language, categoryId } = req.body;
+
+    // ✅ Validate language
+    if (!language) {
+      return res.status(400).json({ message: "Language is required" });
+    }
+
+    // ✅ Validate categoryId
+    if (!categoryId) {
+      return res.status(400).json({ message: "CategoryId is required" });
+    }
+
+    // ✅ Ensure category exists
+    const categoryDoc = await Category.findById(categoryId);
+    if (!categoryDoc) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
     // ✅ Single file upload
     if (req.file) {
-      const result = await FeedService.uploadFeed(req.body, req.file, userId);
+      const result = await FeedService.uploadFeed(
+        { ...req.body, language, categoryId },
+        req.file,
+        userId
+      );
+
       return res.status(201).json({
         message: "Feed uploaded successfully",
         feeds: [result.feed],
-        categories: [result.category],
+        categories: [result.categoryId],
+        language: result.language,
         roleType: result.roleType
       });
     }
 
     // ✅ Multiple files upload
     if (req.files && req.files.length > 0) {
-      const results = await FeedService.uploadFeedsMultiple(req.body, req.files, userId);
+      const results = await FeedService.uploadFeedsMultiple(
+        { ...req.body, language, categoryId },
+        req.files,
+        userId
+      );
+
       return res.status(201).json({
         message: "All feeds uploaded successfully",
         feeds: results.map(r => r.feed),
-        categories: results.map(r => r.category),
+        categories: results.map(r => r.categoryId),
+        languages: results.map(r => r.language),
         roleTypes: results.map(r => r.roleType)
       });
     }
@@ -82,3 +145,5 @@ exports.childAdminFeedUpload = async (req, res) => {
     return res.status(500).json({ message: error.message || "Server error" });
   }
 };
+
+

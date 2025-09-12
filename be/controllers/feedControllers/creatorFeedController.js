@@ -8,7 +8,8 @@ const {feedTimeCalculator}=require("../../middlewares/feedTimeCalculator");
 const {getActiveCreatorAccount}=require("../../middlewares/creatorAccountactiveStatus");
 const Categories=require('../../models/categorySchema');
 const User=require('../../models/userModels/userModel');
-const mongoose=require("mongoose")
+const mongoose=require("mongoose");
+const { getLanguageCode, getLanguageName } = require("../../middlewares/helper/languageHelper")
 
 
  
@@ -31,7 +32,9 @@ exports.creatorFeedUpload = async (req, res) => {
 
     const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
-      return res.status(403).json({ message: "Active Creator account required to upload feed" });
+      return res
+        .status(403)
+        .json({ message: "Active Creator account required to upload feed" });
     }
 
     if (!req.file) {
@@ -40,7 +43,15 @@ exports.creatorFeedUpload = async (req, res) => {
 
     const { language, categoryId, type } = req.body;
     if (!language || !categoryId || !type) {
-      return res.status(400).json({ message: "Language, categoryId, and type are required" });
+      return res
+        .status(400)
+        .json({ message: "Language, categoryId, and type are required" });
+    }
+
+    // ✅ Normalize and validate language
+    const normalizedLang = getLanguageCode(language);
+    if (!normalizedLang) {
+      return res.status(400).json({ message: "Invalid or unsupported language" });
     }
 
     // Validate categoryId exists
@@ -51,9 +62,13 @@ exports.creatorFeedUpload = async (req, res) => {
 
     // Prevent duplicate file upload
     const newFileName = path.basename(req.file.path);
-    const existFeed = await Feed.findOne({ contentUrl: { $regex: `${newFileName}$` } });
+    const existFeed = await Feed.findOne({
+      contentUrl: { $regex: `${newFileName}$` },
+    });
     if (existFeed) {
-      return res.status(400).json({ message: "The file has already been uploaded" });
+      return res
+        .status(400)
+        .json({ message: "The file has already been uploaded" });
     }
 
     // Video duration check (only for video type)
@@ -61,38 +76,44 @@ exports.creatorFeedUpload = async (req, res) => {
     if (type === "video" && req.file.mimetype.startsWith("video/")) {
       videoDuration = await getVideoDurationInSeconds(req.file.path);
       if (videoDuration >= 90.0) {
-        return res.status(400).json({ message: "Upload video below 90 seconds" });
+        return res
+          .status(400)
+          .json({ message: "Upload video below 90 seconds" });
       }
     }
 
-    // Create and save feed
+    // ✅ Create and save feed with normalized language code
     const newFeed = new Feed({
       type,
-      language,
+      language: normalizedLang,
       category: categoryId,
       duration: videoDuration,
       createdByAccount: activeAccount._id,
-      contentUrl: req.file.path.replace(/\\/g, "/"), // ✅ normalize path
+      contentUrl: req.file.path.replace(/\\/g, "/"), // normalize path
       roleRef: creatorRole,
     });
 
     await newFeed.save();
 
-    // Optional: push feedId into category (if you still want denormalized data)
+    // Optional: push feedId into category
     await Categories.findByIdAndUpdate(categoryId, {
       $push: { feedIds: newFeed._id },
     });
 
     return res.status(201).json({
       message: "Feed created successfully",
-      feed: newFeed,
+      feed: {
+        ...newFeed.toObject(),
+        languageName: getLanguageName(normalizedLang), // 👈 extra info for client
+      },
     });
   } catch (error) {
     console.error("Error creating feed:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
   }
 };
-
 
 
 
