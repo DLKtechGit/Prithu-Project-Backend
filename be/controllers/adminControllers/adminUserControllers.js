@@ -6,7 +6,8 @@ const UserFeedActions=require('../../models/userFeedInterSectionModel');
 const Account=require('../../models/accountSchemaModel');
 const ProfileSettings=require('../../models/profileSettingModel.js');
 const path=require('path')
-const mongoose=require("mongoose")
+const mongoose=require("mongoose");
+const Device = require("../../models/userModels/userSession-Device/deviceModel");
 
 
 let redisClient;
@@ -290,5 +291,68 @@ exports.getUserLikedFeedsforAdmin = async (req, res) => {
     });
   }
 };
+
+
+
+
+exports.getUsersStatus = async (req, res) => {
+  try {
+    // 1️⃣ Fetch users with required fields
+    const users = await Users.find({}, "username email isOnline lastSeenAt").lean();
+
+    if (!users.length) {
+      return res.json({ totalOnline: 0, totalOffline: 0, users: [] });
+    }
+
+    // 2️⃣ Get devices in a single query (only needed fields)
+    const userIds = users.map((u) => u._id);
+    const devices = await Device.find(
+      { userId: { $in: userIds } },
+      "userId deviceId deviceType ipAddress lastActiveAt"
+    ).lean();
+
+    // 3️⃣ Group devices by userId
+    const devicesByUser = devices.reduce((acc, d) => {
+      const id = d.userId.toString();
+      if (!acc[id]) acc[id] = [];
+      acc[id].push({
+        deviceId: d.deviceId,
+        deviceType: d.deviceType,
+        ipAddress: d.ipAddress,
+        lastActiveAt: d.lastActiveAt,
+      });
+      return acc;
+    }, {});
+
+    // 4️⃣ Build result + online/offline count
+    let totalOnline = 0;
+    let totalOffline = 0;
+
+    const result = users.map((user) => {
+      if (user.isOnline) totalOnline++;
+      else totalOffline++;
+
+      const userDevices = devicesByUser[user._id.toString()] || [];
+
+      return {
+        ...user,
+        deviceCount: userDevices.length,
+        devices: userDevices,
+      };
+    });
+
+    // 5️⃣ Final response
+    res.json({
+      totalOnline,
+      totalOffline,
+      totalUsers: users.length,
+      users: result,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 
 

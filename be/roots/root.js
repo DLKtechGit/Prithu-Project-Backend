@@ -14,7 +14,7 @@ const {
   userPasswordReset,
   existUserVerifyOtp, 
   newUserVerifyOtp,
-  userlogOut,
+  userLogOut,
 } = require('../controllers/authenticationControllers/userAuthController');
 
 const {
@@ -94,7 +94,7 @@ const {
 } = require('../controllers/profileControllers/profileController');
 
 const {
-  getUserStatus,
+  getUsersStatus,
   getUsersByDate,
   getAllUserDetails,
   getAnaliticalCountforUser,
@@ -156,7 +156,7 @@ const {
 
 const {
   followAccount,
-  unfollowAccount,
+  unFollowAccount,
   getAccountFollowers,
   getCreatorFollowers,
 } = require('../controllers/followersControllers.js/followerDetailController');
@@ -187,6 +187,7 @@ const{
 
 const{
   getCommentsByFeed,
+  getRepliesByComment,
 }=require('../controllers/conmmentController')
 
 // Multer Storage Configuration
@@ -221,7 +222,7 @@ router.post('/auth/user/otp-send', userSendOtp);
 router.post('/auth/exist/user/verify-otp', existUserVerifyOtp);
 router.post('/auth/new/user/verify-otp', newUserVerifyOtp);
 router.post('/auth/user/reset-password', userPasswordReset);
-router.post('/auth/user/logout', userlogOut);
+router.post('/auth/user/logout', userLogOut);
 
 /* --------------------- User Referral API Actions --------------------- */
 router.post('/user/later/referral',auth,applyReferralCode)
@@ -249,7 +250,7 @@ router.post('/user/interested/feed',auth,userInterestedCategory);
 /* --------------------- User Feed Get Actions --------------------- */
 router.get('/user/get/saved/feeds',auth, getUserSavedFeeds);
 router.get('/user/download/feeds', auth, getUserDownloadedFeeds);
-router.get('/user/liked/feeds', getUserLikedFeeds);
+router.get('/user/liked/feeds',auth, getUserLikedFeeds);
 
 /* --------------------- User Subscription --------------------- */
 router.post('/user/plan/subscription', auth, subscribePlan);
@@ -266,9 +267,9 @@ router.get('/user/right/tree/referals',auth,getUserReferralTree);
 router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
-router.post('/user/follow/creator', auth, followAccount);
-router.post('/user/unfollow/creator', auth, unfollowAccount);
-router.get('/user/get/followers', auth, getAccountFollowers);
+ router.post('/user/follow/creator', followAccount);
+ router.post('/user/unfollow/creator', auth, unFollowAccount);
+// router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
 router.post('/user/profile/detail/update',auth,upload.single('file'), userProfileDetailUpdate);
@@ -326,7 +327,7 @@ router.get('/admin/getall/subscriptions', getAllPlans);
 /* --------------------- Admin User API --------------------- */
 router.get('/admin/getall/users', getAllUserDetails);
 router.get('/admin/get/user/profile/detail',auth,getUserDetailWithId)
-router.get("/admin/users/status", getUserStatus);
+router.get("/admin/users/status", getUsersStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
 router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountforUser)
 // router.get('/admin/user/followers/count')
@@ -358,6 +359,8 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 
 /* --------------------- Feed For Comments API --------------------- */
 router.post('/get/comments/for/feed',getCommentsByFeed)
+router.post('/get/comments/relpy/for/feed',getRepliesByComment)
+
 
 /* --------------------- Tags API --------------------- */
 router.post('/search/all/category',searchCategories)

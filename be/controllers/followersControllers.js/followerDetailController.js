@@ -1,61 +1,120 @@
 const Follower = require("../../models/followerModel");
-const Creator = require("../../models/creatorModel");
+const Account=require('../../models/accountSchemaModel')
 const mongoose = require("mongoose");
 
 
-// Follow an account (e.g., follow a Creator account)
+
+
 exports.followAccount = async (req, res) => {
   try {
-    const userId = req.Id; // current logged-in account
-    const creatorId = req.body.accountId; // account to follow
-    if (!userId || !creatorId) {
+    const currentUserId = req.Id || req.body.userId; // logged-in user
+    const accountId = req.body.accountId; // account to follow
+
+    if (!currentUserId || !accountId) {
       return res.status(400).json({ message: "Follower and Target account IDs are required" });
     }
 
-    if (userId === creatorId) {
-      return res.status(400).json({ message: "You cannot follow your own account" });
-    }
-
-    // Ensure target exists and is a Creator
-    const targetAccount = await Account.findById(creatorId);
+    // 1️⃣ Get the target account
+    const targetAccount = await Account.findById(accountId).lean();
     if (!targetAccount || targetAccount.type !== "Creator") {
       return res.status(404).json({ message: "Creator account not found" });
     }
 
-    // Create follow relation
-    await Follower.create({ userId, followingAccountId: creatorId });
+    const targetUserId = targetAccount.userId.toString();
 
-    res.status(200).json({ message: "Followed successfully" });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({ message: "Already following" });
+    // 2️⃣ Prevent self-follow
+    if (currentUserId.toString() === targetUserId) {
+      return res.status(400).json({ message: "You cannot follow your own account" });
     }
-    res.status(500).json({ message: "Server error", error });
+
+    // 3️⃣ Check if Follower document exists
+    let followerDoc = await Follower.findOne({ userId: targetUserId });
+
+    // 4️⃣ If document exists, check if user already followed
+    if (followerDoc) {
+      const alreadyFollowed = followerDoc.followerIds.some(
+        (f) => f.userId.toString() === currentUserId.toString()
+      );
+      if (alreadyFollowed) {
+        return res.status(400).json({ message: "You already followed this Creator" });
+      }
+
+      // 5️⃣ Add current user to followerIds
+      followerDoc.followerIds.push({ userId: currentUserId, createdAt: new Date() });
+      await followerDoc.save();
+    } else {
+      // 6️⃣ Create new follower document if not exists
+      followerDoc = await Follower.create({
+        userId: targetUserId,
+        followerIds: [{ userId: currentUserId, createdAt: new Date() }],
+      });
+    }
+
+    res.status(200).json({ message: "Followed successfully", followerDoc });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 };
 
 // Unfollow an account
-exports.unfollowAccount = async (req, res) => {
+exports.unFollowAccount = async (req, res) => {
   try {
-    const userId = req.Id;
-    const creatorId = req.body.accountId;
+    const currentUserId = req.Id; // logged-in user
+    const accountId = req.body.accountId; // account to unfollow
 
-    if (!userId || !creatorId) {
+    if (!currentUserId || !accountId) {
       return res.status(400).json({ message: "Follower and Target account IDs are required" });
     }
 
-    const deleted = await Follower.findOneAndDelete({
-      userId,
-      followingAccountId: creatorId
-    });
+    // 1️⃣ Get the target account
+    const targetAccount = await Account.findById(accountId).lean();
+    if (!targetAccount) {
+      return res.status(404).json({ message: "Target account not found" });
+    }
 
-    if (!deleted) {
+    const targetUserId = targetAccount.userId.toString();
+
+    // 2️⃣ Find or create Follower document for target user
+    let followerDoc = await Follower.findOne({ userId: targetUserId });
+    if (!followerDoc) {
       return res.status(400).json({ message: "You are not following this account" });
     }
 
-    res.status(200).json({ message: "Unfollowed successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    // 3️⃣ Check if user is in followerIds
+    const isFollowing = followerDoc.followerIds.some(
+      (f) => f.userId.toString() === currentUserId.toString()
+    );
+
+    if (!isFollowing) {
+      // Check if already in nonFollowerIds
+      const alreadyUnfollowed = followerDoc.nonFollowerIds.some(
+        (nf) => nf.userId.toString() === currentUserId.toString()
+      );
+      if (alreadyUnfollowed) {
+        return res.status(400).json({ message: "You already unfollowed this account" });
+      }
+
+      // Not following, but add to nonFollowerIds
+      followerDoc.nonFollowerIds.push({ userId: currentUserId, createdAt: new Date() });
+      await followerDoc.save();
+
+      return res.status(200).json({ message: "You are now in non-followers list", followerDoc });
+    }
+
+    // 4️⃣ Pull from followerIds and push to nonFollowerIds
+    followerDoc.followerIds = followerDoc.followerIds.filter(
+      (f) => f.userId.toString() !== currentUserId.toString()
+    );
+
+    followerDoc.nonFollowerIds.push({ userId: currentUserId, createdAt: new Date() });
+
+    await followerDoc.save();
+
+    res.status(200).json({ message: "Unfollowed successfully", followerDoc });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
