@@ -399,35 +399,84 @@ exports.getUserLikedFeeds = async (req, res) => {
 
   if (!userId) return res.status(400).json({ message: "userId is required" });
 
-  try {
-    const userActions = await UserFeedActions.findOne({ userId })
-      .populate("likedFeeds.feedId", "contentUrl fileUrl downloadUrl type")
-      .lean();
+  // ✅ Dynamically set host from request
+  const host = `${req.protocol}://${req.get("host")}`;
 
-    if (!userActions || !userActions.likedFeeds.length) {
+  try {
+    const likedFeeds = await UserFeedActions.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      { $unwind: "$likedFeeds" },
+
+      // Join feed data
+      {
+        $lookup: {
+          from: "Feeds",
+          localField: "likedFeeds.feedId",
+          foreignField: "_id",
+          as: "feed",
+        },
+      },
+      { $unwind: "$feed" },
+
+      // Count total likes for each feed
+      {
+        $lookup: {
+          from: "UserFeedActions",
+          let: { feedId: "$likedFeeds.feedId" },
+          pipeline: [
+            { $unwind: "$likedFeeds" },
+            { $match: { $expr: { $eq: ["$likedFeeds.feedId", "$$feedId"] } } },
+            { $count: "totalLikes" },
+          ],
+          as: "likeStats",
+        },
+      },
+
+      // Pass host string into each document
+      { $addFields: { host } },
+
+      // Format output
+      {
+        $project: {
+          feedId: "$feed._id",
+          type: "$feed.type",
+          likedAt: "$likedFeeds.likedAt",
+          totalLikes: { $ifNull: [{ $arrayElemAt: ["$likeStats.totalLikes", 0] }, 0] },
+          url: {
+            $cond: [
+              { $ifNull: ["$feed.downloadUrl", false] },
+              "$feed.downloadUrl",
+              {
+                $cond: [
+                  { $ifNull: ["$feed.fileUrl", false] },
+                  "$feed.fileUrl",
+                  {
+                    $cond: [
+                      { $ifNull: ["$feed.contentUrl", false] },
+                      {
+                        $concat: [
+                          "$host",                // ✅ dynamic host
+                          "/uploads/",
+                          {
+                            $cond: [{ $eq: ["$feed.type", "video"] }, "videos/", "images/"],
+                          },
+                          { $arrayElemAt: [{ $split: ["$feed.contentUrl", "/"] }, -1] },
+                        ],
+                      },
+                      null,
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    if (!likedFeeds.length) {
       return res.status(404).json({ message: "No liked feeds found" });
     }
-
-    // Map with timestamp
-    const likedFeeds = userActions.likedFeeds.map(item => {
-      const feed = item.feedId;
-      if (!feed) return null;
-
-      const folder = feed.type === "video" ? "videos" : "images";
-      const url =
-        feed.downloadUrl ||
-        feed.fileUrl ||
-        (feed.contentUrl
-          ? `http://192.168.1.48:5000/uploads/${folder}/${path.basename(feed.contentUrl)}`
-          : null);
-
-      return {
-        feedId: feed._id,
-        url,
-        type: feed.type,
-        likedAt: item.likedAt, // ✅ include timestamp
-      };
-    }).filter(Boolean);
 
     res.status(200).json({
       message: "Liked feeds retrieved successfully",

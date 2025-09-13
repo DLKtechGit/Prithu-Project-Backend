@@ -1,12 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
-const DeviceSchema = new mongoose.Schema({
-  deviceId: { type: String, required: true },
-  deviceType: { type: String, enum: ["web", "mobile"], required: true },
-  ipAddress: { type: String },
-  lastActiveAt: { type: Date, default: Date.now },
-});
+
 
 const UserSchema = new mongoose.Schema(
   {
@@ -42,10 +37,6 @@ const UserSchema = new mongoose.Schema(
       createdAt: { type: Date, default: Date.now },
       updatedAt: { type: Date, default: Date.now },
     },
-    devices: { type: [DeviceSchema], default: [] },
-    activeSession: { type: String, default: null },
-    isOnline: { type: Boolean, default: false, index: true },
-    lastSeenAt: { type: Date, default: null },
     fcmTokens: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
@@ -55,6 +46,7 @@ const UserSchema = new mongoose.Schema(
     termsAccepted: { type: Boolean, required: true, default: false },
     termsAcceptedAt: { type: Date },
     trialUsed: { type: Boolean, default: false },
+    //* User Session Detail *//
   },
   { timestamps: true }
 );

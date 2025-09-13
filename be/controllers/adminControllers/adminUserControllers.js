@@ -200,7 +200,7 @@ exports.getAnaliticalCountforUser = async (req, res) => {
 
 
 
-exports.getUserLikedFeeds = async (req, res) => {
+exports.getUserLikedFeedsforAdmin = async (req, res) => {
   try {
     const userId = req.params.userId;
 

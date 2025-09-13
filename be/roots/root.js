@@ -66,6 +66,7 @@ const {
   getAppLanguage,
   getFeedLanguage,
   setFeedLanguage,
+  checkUsernameAvailability,
 } = require('../controllers/userControllers/userDetailController');
 
 const{
@@ -97,7 +98,7 @@ const {
   getUsersByDate,
   getAllUserDetails,
   getAnaliticalCountforUser,
-  getUserLikedFeeds,
+  getUserLikedFeedsforAdmin,
 } = require('../controllers/adminControllers/adminUserControllers');
 
 const {
@@ -109,6 +110,7 @@ const {
   getUserDownloadedFeeds,
   shareFeed,
   commentLike,
+  getUserLikedFeeds,
 } = require('../controllers/feedControllers/userActionsFeedController');
 
 const{
@@ -225,28 +227,29 @@ router.post('/auth/user/logout', userlogOut);
 router.post('/user/later/referral',auth,applyReferralCode)
 
 /* --------------------- Fresh Users API --------------------- */
-router.post('/app/language', setAppLanguage );
+router.post('/app/language',auth, setAppLanguage );
 router.get('/get/app/language',auth,getAppLanguage);
-router.post('/feed/language', setFeedLanguage );
+router.post('/feed/language',auth, setFeedLanguage );
 router.get('/feed/language', auth, getFeedLanguage );
-router.get('/get/content/catagories', getUserContentCategories);
+router.get('/get/content/catagories',auth, getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
-router.get('/get/user/content/catagories', getUserContentCategories);
+router.get('/get/user/content/catagories',auth, getUserContentCategories);
 
 /* --------------------- User Feed Actions --------------------- */
 router.post('/user/feed/like',auth, likeFeed);
-router.post('/user/comment/like',commentLike);
+router.post('/user/comment/like',auth,commentLike);
 router.post('/user/feed/save',auth, toggleSaveFeed);
-router.post('/user/feed/download', downloadFeed);
-router.post('/user/feed/comment', postComment);
+router.post('/user/feed/download',auth, downloadFeed);
+router.post('/user/feed/comment',auth, postComment);
 router.post('/user/feed/share',auth, shareFeed);
 router.post('/user/select/category',auth,userSelectCategory);
 router.post('/user/not/intrested',auth,userNotInterestedCategory);
 router.post('/user/interested/feed',auth,userInterestedCategory);
 
 /* --------------------- User Feed Get Actions --------------------- */
-router.get('/user/get/saved/feeds', getUserSavedFeeds);
-router.get('/user/saved/download', auth, getUserDownloadedFeeds);
+router.get('/user/get/saved/feeds',auth, getUserSavedFeeds);
+router.get('/user/download/feeds', auth, getUserDownloadedFeeds);
+router.get('/user/liked/feeds', getUserLikedFeeds);
 
 /* --------------------- User Subscription --------------------- */
 router.post('/user/plan/subscription', auth, subscribePlan);
@@ -256,7 +259,7 @@ router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 // /* --------------------- User Subscription --------------------- */
 // router.get('/user/left/tree/referals',getUserReferralTree);
-router.get('/user/right/tree/referals',getUserReferralTree);
+router.get('/user/right/tree/referals',auth,getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
@@ -329,7 +332,7 @@ router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountfo
 // router.get('/admin/user/followers/count')
 // router.get('/admin/user/followers/detail')
 // router.get('/admin/user/interest/categories')
- router.get('/amin/user/likes/:userId',getUserLikedFeeds)
+ router.get('/admin/user/likes/:userId',getUserLikedFeedsforAdmin)
 // router.get('/amin/user/share')
 // router.get('/amin/user/dwonload')
 // router.get('/amin/user/comment')

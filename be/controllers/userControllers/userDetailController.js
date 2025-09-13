@@ -137,5 +137,38 @@ exports.getFeedLanguage = async (req, res) => {
 
 
 
+exports.checkUsernameAvailability = async (req, res) => {
+  try {
+    const { username } = req.query;
+
+    if (!username || username.trim() === "") {
+      return res.status(400).json({ message: "Username is required" });
+    }
+
+    // Normalize (optional: lowercase for unique handling)
+    const formattedUsername = username.trim().toLowerCase();
+
+    // Check if username exists
+    const userExists = await User.findOne({ username: formattedUsername }).lean();
+
+    if (userExists) {
+      return res.status(200).json({
+        available: false,
+        message: "Username not available",
+      });
+    }
+
+    return res.status(200).json({
+      available: true,
+      message: "Username available",
+    });
+  } catch (error) {
+    console.error("Error checking username availability:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
 
 

@@ -125,7 +125,8 @@ exports.creatorFeedDelete = async (req, res) => {
 
   try {
     const accountId = req.Id;
-    const activeAccount = await getActiveCreatorAccount(accountId);
+    const userId=req.Id;
+    const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
       await session.abortTransaction();
       return res
@@ -199,7 +200,7 @@ exports.creatorFeedDelete = async (req, res) => {
 
 exports.getCreatorPost = async (req, res) => {
   try {
-    const accountId = req.Id || req.body.accountId;
+    const accountId = req.accountId || req.body.accountId;
     if (!accountId) {
       return res.status(400).json({ message: "Account ID is required" });
     }
@@ -267,12 +268,13 @@ exports.getCreatorPost = async (req, res) => {
 
 exports.getCreatorFeeds = async (req, res) => {
   try {
-    const accountId = req.accountId;
+    const accountId = req.accountId || req.body.accountId
+    const userId=req.Id || req.body.userId
     if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
     }
  
-    const activeAccount = await getActiveCreatorAccount(accountId);
+    const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
       return res
         .status(403)
