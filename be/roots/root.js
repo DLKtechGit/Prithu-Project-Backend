@@ -274,7 +274,7 @@ router.get('/get/all/feeds/user',getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
  router.post('/user/follow/creator', followAccount);
- router.post('/user/unfollow/creator', auth, unFollowAccount);
+ router.post('/user/unfollow/creator',unFollowAccount);
 // router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */

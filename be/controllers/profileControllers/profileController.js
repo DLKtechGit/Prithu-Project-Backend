@@ -327,9 +327,8 @@ exports.getUserProfileDetail = async (req, res) => {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    const host = `${req.protocol}://${req.get("host")}`;
     const profileAvatarUrl = profile.profileAvatar
-      ? `${host}/${profile.profileAvatar.replace(/^\/+/, "")}`
+      ? profile.profileAvatar
       : null;
 
     const {
@@ -381,9 +380,9 @@ exports.getAdminProfileDetail = async (req, res) => {
 
     if (!profile) return res.status(404).json({ message: "Admin profile not found" });
 
-    const host = req.protocol + "://" + req.get("host");
+
     const profileAvatarUrl = profile.profileAvatar
-      ? host + "/" + profile.profileAvatar.replace(/^\/+/, "")
+      ?  profile.profileAvatar
       : null;
 
     return res.status(200).json({
@@ -435,9 +434,8 @@ exports.getChildAdminProfileDetail = async (req, res) => {
         .lean();
     }
 
-    const host = req.protocol + "://" + req.get("host");
     const profileAvatarUrl = profile.profileAvatar
-      ? host + "/" + profile.profileAvatar.replace(/^\/+/, "")
+      ?  profile.profileAvatar
       : null;
 
     return res.status(200).json({

@@ -240,10 +240,10 @@ exports.getCreatorPost = async (req, res) => {
       });
     }
 
-    const host = `${req.protocol}://${req.get("host")}`;
+   
     const feedsFormatted = feeds.map(feed => ({
       feedId: feed._id,
-      contentUrl: `${host}/${feed.contentUrl}`,
+      contentUrl:feed.contentUrl,
       timeAgo: feedTimeCalculator(feed.createdAt),
     }));
 

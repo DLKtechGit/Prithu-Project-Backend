@@ -44,7 +44,7 @@ exports.getCommentsByFeed = async (req, res) => {
     const userLikedCommentIds = userLikedComments.map(c => c.commentId.toString());
 
     // 4. Replies count per comment
-    const replyAgg = await Reply.aggregate([
+    const replyAgg = await UserReplyComment.aggregate([
       { $match: { commentId: { $in: commentIds } } },
       { $group: { _id: "$commentId", count: { $sum: 1 } } }
     ]);
@@ -57,11 +57,10 @@ exports.getCommentsByFeed = async (req, res) => {
       .lean();
 
     const profileMap = {};
-    const host = `${req.protocol}://${req.get("host")}`;
     profiles.forEach(p => {
       profileMap[p.userId.toString()] = {
         username: p.userName,
-        avatar: p.profileAvatar ? `${host}/${p.profileAvatar}` : null,
+        avatar: p.profileAvatar 
       };
     });
 
@@ -97,9 +96,6 @@ exports.getRepliesByComment = async (req, res) => {
     const currentUserId = req.Id || req.body.userId;
 
     if (!parentCommentId) return res.status(400).json({ message: "Parent Comment ID required" });
-
-    const host = `${req.protocol}://${req.get("host")}`;
-
     // Aggregation pipeline to fetch replies with like count
     const replies = await UserReplyComment.aggregate([
       { $match: { parentCommentId:new mongoose.Types.ObjectId(parentCommentId) } },
@@ -136,7 +132,7 @@ exports.getRepliesByComment = async (req, res) => {
     profiles.forEach(p => {
       profileMap[p.userId.toString()] = {
         username: p.userName,
-        avatar: p.profileAvatar ? `${host}/${p.profileAvatar}` : null
+        avatar: p.profileAvatar ,
       };
     });
 

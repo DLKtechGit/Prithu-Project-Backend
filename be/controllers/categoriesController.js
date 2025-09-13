@@ -39,7 +39,7 @@ exports.getAllCategories = async (req, res) => {
 exports.getCategoryWithId = async (req, res) => {
   try {
     const categoryId = req.params.id;
-    const host = `${req.protocol}://${req.get("host")}`; // host for full URL
+  
 
     // 1️⃣ Find category
     const category = await Categories.findById(categoryId).lean();
@@ -105,7 +105,7 @@ exports.getCategoryWithId = async (req, res) => {
     // 3️⃣ Add full URL for feed content and timeAgo
     const formattedFeeds = feeds.map((f) => ({
       ...f,
-      contentUrl: `${host}/${f.contentUrl}`,
+      contentUrl:f.contentUrl,
       timeAgo: feedTimeCalculator(new Date(f.createdAt)),
     }));
 

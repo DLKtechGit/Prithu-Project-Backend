@@ -35,4 +35,4 @@ const followerSchema = new mongoose.Schema({
 // Ensure one document per user
 followerSchema.index({ userId: 1 }, { unique: true });
 
-module.exports = mongoose.model("Follower", followerSchema, "Followers");
+module.exports = mongoose.model("Follower", followerSchema, "UserFollowings");

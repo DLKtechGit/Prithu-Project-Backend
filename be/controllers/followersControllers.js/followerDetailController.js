@@ -1,6 +1,7 @@
-const Follower = require("../../models/followerModel");
+const Follower = require("../../models/userFollowingModel");
 const Account=require('../../models/accountSchemaModel')
 const mongoose = require("mongoose");
+const CreatorFollower=require('../../models/creatorFollowerModel')
 
 
 
@@ -50,6 +51,13 @@ exports.followAccount = async (req, res) => {
       });
     }
 
+    // 🔹 7️⃣ Also update CreatorFollower schema
+    await CreatorFollower.findOneAndUpdate(
+      { creatorId: accountId },
+      { $addToSet: { followerIds: currentUserId } }, // avoid duplicates
+      { upsert: true, new: true }
+    );
+
     res.status(200).json({ message: "Followed successfully", followerDoc });
   } catch (err) {
     console.error(err);
@@ -57,10 +65,11 @@ exports.followAccount = async (req, res) => {
   }
 };
 
+
 // Unfollow an account
 exports.unFollowAccount = async (req, res) => {
   try {
-    const currentUserId = req.Id; // logged-in user
+    const currentUserId = req.Id || req.body.userId // logged-in user
     const accountId = req.body.accountId; // account to unfollow
 
     if (!currentUserId || !accountId) {
@@ -99,6 +108,12 @@ exports.unFollowAccount = async (req, res) => {
       followerDoc.nonFollowerIds.push({ userId: currentUserId, createdAt: new Date() });
       await followerDoc.save();
 
+      // 🔹 Also make sure user is removed from CreatorFollower
+      await CreatorFollower.updateOne(
+        { creatorId: accountId },
+        { $pull: { followerIds: currentUserId } }
+      );
+
       return res.status(200).json({ message: "You are now in non-followers list", followerDoc });
     }
 
@@ -111,12 +126,19 @@ exports.unFollowAccount = async (req, res) => {
 
     await followerDoc.save();
 
+    // 🔹 Also update CreatorFollower schema → remove current user
+    await CreatorFollower.updateOne(
+      { creatorId: accountId },
+      { $pull: { followerIds: currentUserId } }
+    );
+
     res.status(200).json({ message: "Unfollowed successfully", followerDoc });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // Get all followers of the current account
 exports.getAccountFollowers = async (req, res) => {

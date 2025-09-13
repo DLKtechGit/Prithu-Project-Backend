@@ -141,14 +141,14 @@ exports.downloadFeed = async (req, res) => {
     if (!feed) return res.status(404).json({ message: "Feed not found" });
 
     // ✅ Generate proper absolute download link
-    const host = `${req.protocol}://${req.get("host")}`;
+   
     const downloadLink =
       feed.downloadUrl
-        ? `${host}/${feed.downloadUrl}`
+        ?feed.downloadUrl
         : feed.fileUrl
-        ? `${host}/${feed.fileUrl}`
+        ? feed.fileUrl
         : feed.contentUrl
-        ? `${host}/${feed.contentUrl}`
+        ? feed.contentUrl
         : null;
 
     if (!downloadLink) {
@@ -234,8 +234,6 @@ exports.postComment = async (req, res) => {
       .select("userName profileAvatar")
       .lean();
 
-    const host = `${req.protocol}://${req.get("host")}`;
-
     // 🔹 Format response
     res.status(201).json({
       message: parentCommentId ? "Reply posted successfully" : "Comment posted successfully",
@@ -243,7 +241,7 @@ exports.postComment = async (req, res) => {
         ...newComment.toObject(),
         timeAgo: feedTimeCalculator(newComment.createdAt), // format for frontend
         username: userProfile?.userName || "Unknown User",
-        avatar: userProfile?.profileAvatar ? `${host}/${userProfile.profileAvatar}` : null,
+        avatar: userProfile?.profileAvatar ?userProfile.profileAvatar : null,
       },
     });
   } catch (err) {
@@ -287,7 +285,7 @@ exports.postReplyComment = async (req, res) => {
       .select("userName profileAvatar")
       .lean();
 
-    const host = `${req.protocol}://${req.get("host")}`;
+    
 
     // 🔹 Format response
     res.status(201).json({
@@ -296,7 +294,7 @@ exports.postReplyComment = async (req, res) => {
         ...newComment.toObject(),
         timeAgo: feedTimeCalculator(newComment.createdAt), // format for frontend
         username: userProfile?.userName || "Unknown User",
-        avatar: userProfile?.profileAvatar ? `${host}/${userProfile.profileAvatar}` : null,
+        avatar: userProfile?.profileAvatar ? userProfile.profileAvatar : null,
       },
     });
   } catch (err) {
@@ -341,8 +339,6 @@ exports.getUserSavedFeeds = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    // Get host dynamically from request
-    const host = `${req.protocol}://${req.get("host")}`;
 
     // 1️⃣ Get user's saved feeds
     const userActions = await UserFeedActions.findOne({ userId }).lean();
@@ -380,7 +376,7 @@ exports.getUserSavedFeeds = async (req, res) => {
       // Determine folder based on type
       const folder = feed.type === "video" ? "videos" : "images";
       const fullContentUrl = feed.contentUrl
-        ? `${host}/uploads/${folder}/${path.basename(feed.contentUrl)}`
+        ? feed.contentUrl
         : null;
 
       return {
@@ -453,9 +449,6 @@ exports.getUserLikedFeeds = async (req, res) => {
 
   if (!userId) return res.status(400).json({ message: "userId is required" });
 
-  // ✅ Dynamically set host from request
-  const host = `${req.protocol}://${req.get("host")}`;
-
   try {
     const likedFeeds = await UserFeedActions.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId) } },
@@ -486,10 +479,7 @@ exports.getUserLikedFeeds = async (req, res) => {
         },
       },
 
-      // Pass host string into each document
-      { $addFields: { host } },
-
-      // Format output
+      // Format output (no host concatenation)
       {
         $project: {
           feedId: "$feed._id",
@@ -507,16 +497,7 @@ exports.getUserLikedFeeds = async (req, res) => {
                   {
                     $cond: [
                       { $ifNull: ["$feed.contentUrl", false] },
-                      {
-                        $concat: [
-                          "$host",                // ✅ dynamic host
-                          "/uploads/",
-                          {
-                            $cond: [{ $eq: ["$feed.type", "video"] }, "videos/", "images/"],
-                          },
-                          { $arrayElemAt: [{ $split: ["$feed.contentUrl", "/"] }, -1] },
-                        ],
-                      },
+                      "$feed.contentUrl",
                       null,
                     ],
                   },
@@ -542,6 +523,7 @@ exports.getUserLikedFeeds = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 exports.commentLike = async (req, res) => {

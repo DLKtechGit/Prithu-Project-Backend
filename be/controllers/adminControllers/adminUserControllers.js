@@ -209,8 +209,6 @@ exports.getUserLikedFeedsforAdmin = async (req, res) => {
       return res.status(400).json({ message: "Invalid userId" });
     }
 
-    const host = `${req.protocol}://${req.get("host")}`;
-
     const userLikedFeeds = await UserFeedActions.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId) } },
       { $unwind: "$likedFeeds" },
@@ -244,19 +242,12 @@ exports.getUserLikedFeedsforAdmin = async (req, res) => {
         }
       },
       { $unwind: { path: "$creatorProfile", preserveNullAndEmptyArrays: true } },
-      // Project final fields
+      // Project final fields (no host)
       {
         $project: {
           _id: 0,
           likedAt: "$likedFeeds.likedAt",
-          contentUrl: {
-            $concat: [
-              host,
-              "/uploads/",
-              { $cond: [{ $eq: ["$feedInfo.type", "video"] }, "videos/", "images/"] },
-              { $arrayElemAt: [{ $split: ["$feedInfo.contentUrl", "\\"] }, -1] }
-            ]
-          },
+          contentUrl: "$feedInfo.contentUrl",
           feedInfo: {
             feedId: "$feedInfo._id",
             type: "$feedInfo.type",
@@ -265,13 +256,7 @@ exports.getUserLikedFeedsforAdmin = async (req, res) => {
             createdAt: "$feedInfo.createdAt",
             createdBy: {
               userName: { $ifNull: ["$creatorProfile.userName", "Unknown"] },
-              profileAvatar: {
-                $cond: [
-                  { $ifNull: ["$creatorProfile.profileAvatar", false] },
-                  { $concat: [host, "/uploads/avatars/", { $arrayElemAt: [{ $split: ["$creatorProfile.profileAvatar", "\\"] }, -1] }] },
-                  null
-                ]
-              }
+              profileAvatar: "$creatorProfile.profileAvatar"
             }
           }
         }
@@ -291,6 +276,7 @@ exports.getUserLikedFeedsforAdmin = async (req, res) => {
     });
   }
 };
+
 
 
 
