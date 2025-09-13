@@ -2,6 +2,7 @@ const UserFeedActions = require("../../models/userFeedInterSectionModel.js");
 const Feeds = require("../../models/feedModel.js");
 const { getActiveUserAccount } = require('../../middlewares/creatorAccountactiveStatus.js');
 const UserComment =require("../../models/userCommentModel.js");
+const UserReplyComment=require('../../models/userRepliesModel')
 const CommentLike = require("../../models/commentsLikeModel.js");
 const path=require('path')
 const User=require('../../models/userModels/userModel');
@@ -224,6 +225,59 @@ exports.postComment = async (req, res) => {
       userId,
       feedId,
       commentText: commentText.trim(),
+      parentCommentId: parentCommentId || null,
+      createdAt: new Date(), // keep raw date in DB
+    });
+
+    // 🔹 Fetch user profile (username & avatar)
+    const userProfile = await ProfileSettings.findOne({ userId })
+      .select("userName profileAvatar")
+      .lean();
+
+    const host = `${req.protocol}://${req.get("host")}`;
+
+    // 🔹 Format response
+    res.status(201).json({
+      message: parentCommentId ? "Reply posted successfully" : "Comment posted successfully",
+      comment: {
+        ...newComment.toObject(),
+        timeAgo: feedTimeCalculator(newComment.createdAt), // format for frontend
+        username: userProfile?.userName || "Unknown User",
+        avatar: userProfile?.profileAvatar ? `${host}/${userProfile.profileAvatar}` : null,
+      },
+    });
+  } catch (err) {
+    console.error("Error posting comment:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+
+
+
+
+exports.postReplyComment = async (req, res) => {
+  try {
+    const userId = req.Id || req.body.userId;
+    const {commentText, parentCommentId } = req.body;
+
+    // 🔹 Validate input
+    if (!userId) return res.status(400).json({ message: "userId is required" });
+    if (!commentText?.trim()) {
+      return res.status(400).json({ message: "commentText is required" });
+    }
+
+    // 🔹 Optional: validate parent comment only if reply
+    if (parentCommentId && !(await UserComment.exists({ _id: parentCommentId }))) {
+      return res.status(400).json({ message: "Parent comment not found" });
+    }
+
+    // 🔹 Create new comment
+    const newComment = await UserReplyComment.create({
+      userId,
+      replyText: commentText.trim(),
       parentCommentId: parentCommentId || null,
       createdAt: new Date(), // keep raw date in DB
     });

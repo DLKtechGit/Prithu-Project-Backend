@@ -1,8 +1,9 @@
 const UserComment = require("../models/userCommentModel");
-const Reply = require("../models/userRepliesModel");
+const UserReplyComment = require("../models/userRepliesModel");
 const CommentLike = require("../models/commentsLikeModel");
 const { feedTimeCalculator } = require("../middlewares/feedTimeCalculator");
 const ProfileSettings=require('../models/profileSettingModel');
+const mongoose=require("mongoose")
 
 
 
@@ -92,70 +93,79 @@ exports.getCommentsByFeed = async (req, res) => {
 
 exports.getRepliesByComment = async (req, res) => {
   try {
-    const { commentId } = req.body;
-    const userId = req.Id || req.body.userId;
+    const { parentCommentId } = req.body;
+    const currentUserId = req.Id || req.body.userId;
 
-    if (!commentId) return res.status(400).json({ message: "Comment ID required" });
+    if (!parentCommentId) return res.status(400).json({ message: "Parent Comment ID required" });
 
-    // 1. Fetch replies for the given comment
-    const replies = await Reply.find({ commentId })
-      .sort({ createdAt: -1 }) // newest first
-      .lean();
+    const host = `${req.protocol}://${req.get("host")}`;
 
-    if (!replies.length) {
-      return res.status(200).json({ replies: [] });
-    }
+    // Aggregation pipeline to fetch replies with like count
+    const replies = await UserReplyComment.aggregate([
+      { $match: { parentCommentId:new mongoose.Types.ObjectId(parentCommentId) } },
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: "CommentLikes",
+          let: { replyId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$commentId", "$$replyId"] } } },
+            { $count: "count" }
+          ],
+          as: "likeData"
+        }
+      },
+      {
+        $addFields: {
+          likeCount: { $arrayElemAt: ["$likeData.count", 0] }
+        }
+      },
+      { $project: { likeData: 0 } }
+    ]);
 
-    const replyIds = replies.map(r => r._id);
+    if (!replies.length) return res.status(200).json({ replies: [] });
+
     const replyUserIds = replies.map(r => r.userId);
 
-    // 2. Likes for replies
-    const replyLikesAgg = await CommentLike.aggregate([
-      { $match: { commentId: { $in: replyIds } } }, // assuming CommentLike also stores reply likes
-      { $group: { _id: "$commentId", count: { $sum: 1 } } }
-    ]);
-    const replyLikeMap = {};
-    replyLikesAgg.forEach(l => { replyLikeMap[l._id.toString()] = l.count; });
-
-    // 3. User liked which replies
-    const userLikedReplies = await CommentLike.find({
-      userId,
-      commentId: { $in: replyIds }
-    }).select("commentId -_id").lean();
-    const userLikedReplyIds = userLikedReplies.map(r => r.commentId.toString());
-
-    // 4. Fetch profile details of all reply users
+    // Fetch profiles in one query
     const profiles = await ProfileSettings.find({ userId: { $in: replyUserIds } })
       .select("userId userName profileAvatar")
       .lean();
 
     const profileMap = {};
-    const host = `${req.protocol}://${req.get("host")}`;
     profiles.forEach(p => {
       profileMap[p.userId.toString()] = {
         username: p.userName,
-        avatar: p.profileAvatar ? `${host}/${p.profileAvatar}` : null,
+        avatar: p.profileAvatar ? `${host}/${p.profileAvatar}` : null
       };
     });
 
-    // 5. Format response
+    // Fetch all likes by current user in one query
+    const userLikedReplies = await CommentLike.find({
+      userId: currentUserId,
+      commentId: { $in: replies.map(r => r._id) }
+    }).select("commentId -_id").lean();
+
+    const userLikedReplyIds = new Set(userLikedReplies.map(r => r.commentId.toString()));
+
+    // Format response
     const formattedReplies = replies.map(r => {
       const profile = profileMap[r.userId?.toString()] || {};
       return {
         replyId: r._id,
         replyText: r.replyText,
-        likeCount: replyLikeMap[r._id.toString()] || 0,
-        isLiked: userLikedReplyIds.includes(r._id.toString()),
+        likeCount: r.likeCount || 0,
+        isLiked: userLikedReplyIds.has(r._id.toString()),
         timeAgo: feedTimeCalculator(r.createdAt),
         username: profile.username || "Unknown User",
-        avatar: profile.avatar,
+        avatar: profile.avatar
       };
     });
 
     res.status(200).json({ replies: formattedReplies });
   } catch (error) {
     console.error("Error in getRepliesByComment:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

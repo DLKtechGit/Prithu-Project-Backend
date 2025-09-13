@@ -5,8 +5,7 @@ const ReplySchema = new mongoose.Schema({
   accountId: { type: mongoose.Schema.Types.ObjectId, ref: "Account", index: true },
 
   // Link back to feed and comment
-  feedId: { type: mongoose.Schema.Types.ObjectId, ref: "Feed", required: true, index: true },
-  commentId: { type: mongoose.Schema.Types.ObjectId, ref: "UserComment", required: true, index: true },
+  parentCommentId: { type: mongoose.Schema.Types.ObjectId, ref: "UserComment", required: true, index: true },
 
   replyText: { type: String, required: true },
 

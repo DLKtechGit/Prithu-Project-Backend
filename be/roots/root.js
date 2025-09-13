@@ -106,6 +106,7 @@ const {
   toggleSaveFeed,
   downloadFeed,
   postComment,
+  postReplyComment,
   getUserSavedFeeds,
   getUserDownloadedFeeds,
   shareFeed,
@@ -231,7 +232,7 @@ router.post('/user/later/referral',auth,applyReferralCode)
 router.post('/app/language',auth, setAppLanguage );
 router.get('/get/app/language',auth,getAppLanguage);
 router.post('/feed/language',auth, setFeedLanguage );
-router.get('/feed/language', auth, getFeedLanguage );
+router.get('/get/feed/language', auth, getFeedLanguage );
 router.get('/get/content/catagories',auth, getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
 router.get('/get/user/content/catagories',auth, getUserContentCategories);
@@ -241,7 +242,8 @@ router.post('/user/feed/like',auth, likeFeed);
 router.post('/user/comment/like',auth,commentLike);
 router.post('/user/feed/save',auth, toggleSaveFeed);
 router.post('/user/feed/download',auth, downloadFeed);
-router.post('/user/feed/comment',auth, postComment);
+router.post('/user/feed/comment',auth,postComment);
+router.post('/user/feed/reply/comment',postReplyComment);
 router.post('/user/feed/share',auth, shareFeed);
 router.post('/user/select/category',auth,userSelectCategory);
 router.post('/user/not/intrested',auth,userNotInterestedCategory);
@@ -251,6 +253,8 @@ router.post('/user/interested/feed',auth,userInterestedCategory);
 router.get('/user/get/saved/feeds',auth, getUserSavedFeeds);
 router.get('/user/download/feeds', auth, getUserDownloadedFeeds);
 router.get('/user/liked/feeds',auth, getUserLikedFeeds);
+router.post('/get/comments/for/feed',auth,getCommentsByFeed);
+router.post('/get/comments/relpy/for/feed',auth,getRepliesByComment);
 
 /* --------------------- User Subscription --------------------- */
 router.post('/user/plan/subscription', auth, subscribePlan);
@@ -358,8 +362,7 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
 /* --------------------- Feed For Comments API --------------------- */
-router.post('/get/comments/for/feed',getCommentsByFeed)
-router.post('/get/comments/relpy/for/feed',getRepliesByComment)
+
 
 
 /* --------------------- Tags API --------------------- */
