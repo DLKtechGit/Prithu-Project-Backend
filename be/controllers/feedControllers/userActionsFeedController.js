@@ -585,3 +585,30 @@ exports.commentLike = async (req, res) => {
 
 
 
+
+exports.userHideFeed = async (req, res) => {
+  try {
+    const userId = req.Id || req.body.userId;
+    const postId = req.body.feedId;
+
+    if (!userId || !postId) return res.status(400).json({ message: "User ID and Post ID are required" });
+
+    // Add to hiddenPostIds if not already hidden
+    const user = await User.findById(userId);
+    if (user.hiddenPostIds.includes(postId)) {
+      return res.status(400).json({ message: "Post already hidden" });
+    }
+
+    user.hiddenPostIds.push(postId);
+    await user.save();
+
+    res.status(200).json({ message: "Post hidden successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+
+

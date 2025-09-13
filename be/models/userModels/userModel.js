@@ -46,6 +46,9 @@ const UserSchema = new mongoose.Schema(
     termsAccepted: { type: Boolean, required: true, default: false },
     termsAcceptedAt: { type: Date },
     trialUsed: { type: Boolean, default: false },
+    hiddenPostIds: [
+    { type: mongoose.Schema.Types.ObjectId, ref: "Feed" }
+  ],
     //* User Session Detail *//
   },
   { timestamps: true }

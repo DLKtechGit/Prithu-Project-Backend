@@ -28,8 +28,14 @@ exports.getAllFeedsByUserId = async (req, res) => {
 
     const host = `${req.protocol}://${req.get("host")}`;
 
-    // 1️⃣ Get all feeds
-    const feeds = await Feed.find().sort({ createdAt: -1 }).lean();
+    // 0️⃣ Get hidden posts for this user
+    const user = await User.findById(userId).select("hiddenPostIds").lean();
+    const hiddenPostIds = user?.hiddenPostIds || [];
+
+    // 1️⃣ Get all feeds excluding hidden ones
+    const feeds = await Feed.find({ _id: { $nin: hiddenPostIds } })
+      .sort({ createdAt: -1 })
+      .lean();
     if (!feeds.length) return res.status(404).json({ message: "No feeds found" });
 
     const feedIds = feeds.map(f => f._id);
@@ -71,24 +77,18 @@ exports.getAllFeedsByUserId = async (req, res) => {
       });
     }
 
-    // 3️⃣ Get current user actions (with timestamps, safe checks)
+    // 3️⃣ Get current user actions (liked/saved)
     let userActions = { likedFeeds: [], savedFeeds: [] };
     if (userId) {
       const uaDoc = await UserFeedActions.findOne({ userId }).lean();
       if (uaDoc) {
         userActions.likedFeeds = (uaDoc.likedFeeds || [])
           .filter(f => f.feedId)
-          .map(f => ({
-            feedId: f.feedId.toString(),
-            likedAt: f.likedAt || null
-          }));
+          .map(f => ({ feedId: f.feedId.toString(), likedAt: f.likedAt || null }));
 
         userActions.savedFeeds = (uaDoc.savedFeeds || [])
           .filter(f => f.feedId)
-          .map(f => ({
-            feedId: f.feedId.toString(),
-            savedAt: f.savedAt || null
-          }));
+          .map(f => ({ feedId: f.feedId.toString(), savedAt: f.savedAt || null }));
       }
     }
 
@@ -109,11 +109,7 @@ exports.getAllFeedsByUserId = async (req, res) => {
     commentsAgg.forEach(c => { commentsMap[c._id.toString()] = c.count });
 
     // 6️⃣ Get Accounts → Profile Settings
-    const accounts = await Account.find(
-      { _id: { $in: accountIds } },
-      { _id: 1, userId: 1 }
-    ).lean();
-
+    const accounts = await Account.find({ _id: { $in: accountIds } }, { _id: 1, userId: 1 }).lean();
     const userIds = accounts.map(a => a.userId);
 
     const profiles = await ProfileSettings.find(
@@ -138,7 +134,6 @@ exports.getAllFeedsByUserId = async (req, res) => {
       const creatorUserId = accountToUserIdMap[feed.createdByAccount?.toString()] || null;
       const profile = creatorUserId ? userIdToProfileMap[creatorUserId] : null;
 
-      // find timestamps if liked/saved
       const likedAction = userActions.likedFeeds.find(f => f.feedId === fid);
       const savedAction = userActions.savedFeeds.find(f => f.feedId === fid);
 
@@ -163,11 +158,7 @@ exports.getAllFeedsByUserId = async (req, res) => {
       };
     });
 
-    res.status(200).json({
-      message: "Feeds retrieved successfully",
-      feeds: enrichedFeeds
-    });
-
+    res.status(200).json({ message: "Feeds retrieved successfully", feeds: enrichedFeeds });
   } catch (error) {
     console.error("Error in getAllFeeds:", error);
     res.status(500).json({ message: "Server error", error: error.message });

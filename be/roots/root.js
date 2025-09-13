@@ -112,6 +112,7 @@ const {
   shareFeed,
   commentLike,
   getUserLikedFeeds,
+  userHideFeed,
 } = require('../controllers/feedControllers/userActionsFeedController');
 
 const{
@@ -255,6 +256,7 @@ router.get('/user/download/feeds', auth, getUserDownloadedFeeds);
 router.get('/user/liked/feeds',auth, getUserLikedFeeds);
 router.post('/get/comments/for/feed',auth,getCommentsByFeed);
 router.post('/get/comments/relpy/for/feed',auth,getRepliesByComment);
+router.post('/user/hide/feed',userHideFeed);
 
 /* --------------------- User Subscription --------------------- */
 router.post('/user/plan/subscription', auth, subscribePlan);
@@ -268,7 +270,7 @@ router.get('/user/right/tree/referals',auth,getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
-router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
+router.get('/get/all/feeds/user',getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
  router.post('/user/follow/creator', followAccount);
