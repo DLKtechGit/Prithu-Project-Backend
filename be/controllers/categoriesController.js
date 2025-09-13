@@ -36,91 +36,98 @@ exports.getAllCategories = async (req, res) => {
 
 
 
-exports.getCategoryWithId = async (req, res) => {
+exports.getUserLikedFeeds = async (req, res) => {
+  const userId = req.Id || req.body.userId;
+
+  if (!userId) return res.status(400).json({ message: "userId is required" });
+
   try {
-    const categoryId = req.params.id;
-  
+    const likedFeeds = await UserFeedActions.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      { $unwind: "$likedFeeds" },
 
-    // 1️⃣ Find category
-    const category = await Categories.findById(categoryId).lean();
-    if (!category) {
-      return res.status(404).json({ message: "Category not found" });
-    }
-
-    // 2️⃣ Aggregate feeds with account and profile info
-    const feeds = await Feed.aggregate([
-      { $match: { category: categoryId } },
-      { $sort: { createdAt: -1 } },
-
-      // Lookup account
+      // Join feed data
       {
         $lookup: {
-          from: "Accounts",
-          localField: "createdByAccount",
+          from: "Feeds",
+          localField: "likedFeeds.feedId",
           foreignField: "_id",
-          as: "account",
+          as: "feed",
         },
       },
-      { $unwind: "$account" },
+      { $unwind: "$feed" },
 
-      // Lookup profile using account.userId
+      // Count total likes for each feed
       {
         $lookup: {
-          from: "ProfileSettings",
-          localField: "account.userId",
-          foreignField: "userId",
-          as: "profile",
+          from: "UserFeedActions",
+          let: { feedId: "$likedFeeds.feedId" },
+          pipeline: [
+            { $unwind: "$likedFeeds" },
+            { $match: { $expr: { $eq: ["$likedFeeds.feedId", "$$feedId"] } } },
+            { $count: "totalLikes" },
+          ],
+          as: "likeStats",
         },
       },
-      { $unwind: { path: "$profile", preserveNullAndEmptyArrays: true } },
 
-      // Project the fields
+      // Format output (host removed)
       {
         $project: {
-          type: 1,
-          language: 1,
-          category: 1,
-          duration: 1,
-          contentUrl: 1,
-          roleRef: 1,
-          createdAt: 1,
-          updatedAt: 1,
-            userName: "$profile.userName",
-            profileAvatar: {
-              $cond: [
-                { $ifNull: ["$profile.profileAvatar", false] },
-                { $concat: [host + "/", "$profile.profileAvatar"] },
-                null,
-              ],
-            
+          feedId: "$feed._id",
+          type: "$feed.type",
+          likedAt: "$likedFeeds.likedAt",
+          totalLikes: { $ifNull: [{ $arrayElemAt: ["$likeStats.totalLikes", 0] }, 0] },
+          url: {
+            $cond: [
+              { $ifNull: ["$feed.downloadUrl", false] },
+              "$feed.downloadUrl",
+              {
+                $cond: [
+                  { $ifNull: ["$feed.fileUrl", false] },
+                  "$feed.fileUrl",
+                  {
+                    $cond: [
+                      { $ifNull: ["$feed.contentUrl", false] },
+                      {
+                        $concat: [
+                          "/uploads/",
+                          {
+                            $cond: [
+                              { $eq: ["$feed.type", "video"] },
+                              "videos/",
+                              "images/",
+                            ],
+                          },
+                          { $arrayElemAt: [{ $split: ["$feed.contentUrl", "/"] }, -1] },
+                        ],
+                      },
+                      null,
+                    ],
+                  },
+                ],
+              },
+            ],
           },
         },
       },
     ]);
 
-    if (!feeds.length) {
-      return res.status(404).json({ message: "No feeds found in this category" });
+    if (!likedFeeds.length) {
+      return res.status(404).json({ message: "No liked feeds found" });
     }
 
-    // 3️⃣ Add full URL for feed content and timeAgo
-    const formattedFeeds = feeds.map((f) => ({
-      ...f,
-      contentUrl:f.contentUrl,
-      timeAgo: feedTimeCalculator(new Date(f.createdAt)),
-    }));
-
     res.status(200).json({
-      category: {
-        categoryId: category._id,
-        categoryName: category.name,
-        feeds: formattedFeeds,
-      },
+      message: "Liked feeds retrieved successfully",
+      count: likedFeeds.length,
+      likedFeeds,
     });
-  } catch (error) {
-    console.error("Error fetching category feeds:", error);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    console.error("Error fetching liked feeds:", err);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 
