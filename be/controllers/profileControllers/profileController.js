@@ -6,6 +6,7 @@ const ChildAdmin = require("../../models/childAdminModel");
 const UserLanguage=require('../../models/userModels/userLanguageModel')
 const mongoose=require('mongoose');
 const { calculateAge } = require("../../middlewares/helper/calculateAge");
+const { deleteFromCloudinary } = require("../../middlewares/services/cloudnaryUpload");
 
 
 // ✅ Validation middleware
@@ -48,7 +49,10 @@ exports.userProfileDetailUpdate = async (req, res) => {
     // ✅ Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ message: "Validation failed", errors: errors.array() });
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: errors.array(),
+      });
     }
 
     // ✅ Collect allowed fields
@@ -73,7 +77,18 @@ exports.userProfileDetailUpdate = async (req, res) => {
       if (req.body[field] !== undefined) updateData[field] = req.body[field];
     });
 
-    if (req.file?.path) updateData.profileAvatar = req.file.path;
+    // ✅ Handle profile avatar (Cloudinary)
+    if (req.cloudinaryFile) {
+      // Delete old avatar if exists
+      const oldProfile = await Profile.findOne({ userId });
+      if (oldProfile?.profileAvatar) {
+        await deleteFromCloudinary(oldProfile.profileAvatar);
+      }
+
+      // Set new avatar
+      updateData.profileAvatar = req.cloudinaryFile.url;
+      updateData.profileAvatarId = req.cloudinaryFile.public_id;
+    }
 
     const userName = req.body.userName;
 
@@ -118,7 +133,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
     console.error("Error in userProfileDetailUpdate:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
 
 exports.adminProfileDetailUpdate =  async (req, res) => {

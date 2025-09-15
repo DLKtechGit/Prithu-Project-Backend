@@ -4,6 +4,9 @@ const multer = require('multer');
 const app = express();
 const path = require('path');
 const { auth } = require('../middlewares/jwtAuthentication');
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+const{ upload, uploadToCloudinary, deleteFromCloudinary, updateOnCloudinary }=require('../middlewares/services/cloudnaryUpload')
 
 
 // Controllers
@@ -192,30 +195,6 @@ const{
   getRepliesByComment,
 }=require('../controllers/conmmentController')
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, "./uploads/images");
-    } else if (file.mimetype.startsWith("video/")) {
-      cb(null, "./uploads/videos");
-    } else {
-      cb(new Error("Only image/video files are allowed"), null);
-    }
-  },
-  filename: (req, file, cb) => {
-    const sanitizedName = file.originalname.replace(/\s+/g, "_");
-    cb(null, Date.now() + "_" + sanitizedName);
-  }
-});
-
-const upload = multer({ storage });
-
-// Serve static files from 'uploads' folder
-app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  next();
-}, express.static(path.join(__dirname, 'uploads')));
 
 /* --------------------- User Authentication --------------------- */
 router.post('/auth/user/register', createNewUser);
@@ -234,9 +213,9 @@ router.post('/user/app/language',auth, setAppLanguage );
 router.get('/user/get/app/language',auth,getAppLanguage);
 router.post('/user/feed/language',auth, setFeedLanguage );
 router.get('/user/get/feed/language', auth, getFeedLanguage );
-router.get('/user/get/content/catagories',auth, getUserContentCategories);
+router.get('/user/get/content/catagories',auth,getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
-router.get('/get/user/content/catagories',auth, getUserContentCategories);
+
 
 /* --------------------- User Feed Actions --------------------- */
 router.post('/user/feed/like',auth, likeFeed);
@@ -270,7 +249,7 @@ router.get('/user/right/tree/referals',auth,getUserReferralTree);
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
-router.get('/get/all/feeds/user',getAllFeedsByUserId);
+router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
 
 /* --------------------- User Follower API --------------------- */
  router.post('/user/follow/creator', followAccount);
@@ -278,7 +257,7 @@ router.get('/get/all/feeds/user',getAllFeedsByUserId);
 // router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
-router.post('/user/profile/detail/update',auth,upload.single('file'), userProfileDetailUpdate);
+router.post('/user/profile/detail/update',auth,upload.single('file'),uploadToCloudinary, userProfileDetailUpdate);
 router.get('/get/profile/detail',auth,getUserProfileDetail);
 
 /* --------------------- Creator Feed API --------------------- */
@@ -313,7 +292,7 @@ router.post('/auth/new/admin/verify-otp', newAdminVerifyOtp);
 router.post('/auth/admin/reset-password', adminPasswordReset);
 
 /* --------------------- Admin Profile API --------------------- */
-router.post('/admin/profile/detail/update',auth,upload.single('file'), adminProfileDetailUpdate);
+router.post('/admin/profile/detail/update',auth,upload.single('file'),adminProfileDetailUpdate);
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
