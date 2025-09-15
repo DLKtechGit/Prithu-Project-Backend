@@ -12,7 +12,7 @@ exports.auth = (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     // Verify and decode token
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'your_secret_key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
 
     // Attach info to request object
      req.Id = decoded.userId || null; // Use lowercase 'id' for consistency
