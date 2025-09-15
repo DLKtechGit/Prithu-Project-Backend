@@ -7,6 +7,7 @@ const ProfileSettingsSchema = new mongoose.Schema(
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" }, // ✅ For Admin
     childAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "ChildAdmin" }, // ✅ For Child Admin
     displayName: { type: String },
+    gender:{type:String},
     userName: { type: String },
     bio: { type: String },
     dateOfBirth: { type: Date },

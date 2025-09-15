@@ -205,7 +205,9 @@ exports.userLogin = async (req, res) => {
       refreshToken,
       sessionId: session._id,
       deviceId: device.deviceId,
-      startUpProcess: userStart,
+      appLanguage: userStart.appLanguage,
+      feedLanguage:userStart.feedLanguage,
+      gender:userStart.gender,
     });
   } catch (error) {
     console.error("Login error:", error);

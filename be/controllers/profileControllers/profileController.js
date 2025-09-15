@@ -22,6 +22,7 @@ exports.validateUserProfileUpdate = [
   body("language").optional().isString(),
   body("timezone").optional().isString(),
   body("details").optional(),
+  body("gender").optional(),
   body("notifications").optional().isObject(),
   body("privacy").optional().isObject(),
 ];
@@ -64,6 +65,7 @@ exports.userProfileDetailUpdate = async (req, res) => {
       "details",
       "notifications",
       "privacy",
+      "gender",
     ];
 
     const updateData = {};
@@ -134,17 +136,19 @@ exports.adminProfileDetailUpdate =  async (req, res) => {
 
       // ---- Allowed fields for profile update ----
       const allowedFields = [
-        "phoneNumber",
-        "bio",
-        "displayName",
-        "dateOfBirth",
-        "maritalStatus",
-        "theme",
-        "language",
-        "timezone",
-        "details",
-        "notifications",
-        "privacy",
+         "phoneNumber",
+      "bio",
+      "displayName",
+      "dateOfBirth",
+      "maritalStatus",
+      "theme",
+      "maritalDate",
+      "language",
+      "timezone",
+      "details",
+      "notifications",
+      "privacy",
+      "gender",
       ];
 
       const updateData = {};
@@ -228,13 +232,14 @@ exports.childAdminProfileDetailUpdate = async (req, res) => {
       "displayName",
       "dateOfBirth",
       "maritalStatus",
-      "maritalDate",
       "theme",
+      "maritalDate",
       "language",
       "timezone",
       "details",
       "notifications",
       "privacy",
+      "gender",
     ];
 
     const updateData = {};

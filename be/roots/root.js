@@ -230,11 +230,11 @@ router.post('/auth/user/logout', userLogOut);
 router.post('/user/later/referral',auth,applyReferralCode)
 
 /* --------------------- Fresh Users API --------------------- */
-router.post('/app/language',auth, setAppLanguage );
-router.get('/get/app/language',auth,getAppLanguage);
-router.post('/feed/language',auth, setFeedLanguage );
-router.get('/get/feed/language', auth, getFeedLanguage );
-router.get('/get/content/catagories',auth, getUserContentCategories);
+router.post('/user/app/language',auth, setAppLanguage );
+router.get('/user/get/app/language',auth,getAppLanguage);
+router.post('/user/feed/language',auth, setFeedLanguage );
+router.get('/user/get/feed/language', auth, getFeedLanguage );
+router.get('/user/get/content/catagories',auth, getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
 router.get('/get/user/content/catagories',auth, getUserContentCategories);
 
