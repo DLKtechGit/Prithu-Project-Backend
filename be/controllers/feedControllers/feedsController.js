@@ -322,8 +322,6 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
     }
     feedId = feedId.trim();
 
-  
-
     const feedWithCreator = await mongoose.connection
       .collection("Feeds")
       .aggregate([
@@ -368,7 +366,7 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
                   bio: 1,
                   displayName: 1,
                   profileAvatar: 1,
-                  userName:1,
+                  userName: 1,
                 },
               },
             ],
@@ -397,15 +395,43 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
           },
         },
 
-        // 5️⃣ Final response fields
+        // 5️⃣ Lookup Followers count
+        {
+          $lookup: {
+            from: "CreatorFollowers",
+            let: { accId: "$createdByAccount" },
+            pipeline: [
+              {
+                $match: { $expr: { $eq: ["$accountId", "$$accId"] } },
+              },
+              {
+                $project: {
+                  followersCount: { $size: { $ifNull: ["$followerIds", []] } },
+                },
+              },
+            ],
+            as: "followersData",
+          },
+        },
+        {
+          $addFields: {
+            followersCount: {
+              $ifNull: [{ $arrayElemAt: ["$followersData.followersCount", 0] }, 0],
+            },
+          },
+        },
+
+        // 6️⃣ Final response fields
         {
           $project: {
             _id: 1,
+            accountId: "$createdByAccount",
             totalPosts: 1,
+            followersCount: 1,
             "profile.displayName": 1,
             "profile.bio": 1,
             "profile.profileAvatar": 1,
-            "profile.userName":1,
+            "profile.userName": 1,
           },
         },
       ])
@@ -415,10 +441,12 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
       return res.status(404).json({ message: "Feed not found" });
     }
 
-    // ✅ Add host to profileAvatar if exists
     let data = feedWithCreator[0];
+
+    // ✅ Add host to profileAvatar if exists
     if (data.profile && data.profile.profileAvatar) {
-      data.profile.profileAvatar = data.profile.profileAvatar
+      const HOST = process.env.HOST || "https://example.com";
+      data.profile.profileAvatar = `${HOST}/${data.profile.profileAvatar}`;
     }
 
     res.status(200).json({
@@ -433,6 +461,7 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
     });
   }
 };
+
 
 
 

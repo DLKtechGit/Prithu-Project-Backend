@@ -212,4 +212,33 @@ exports.checkUsernameAvailability = async (req, res) => {
 
 
 
+exports.getUserReferalCode = async (req, res) => {
+  try {
+    const userId = req.Id || req.body.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Fetch user from database
+    const user = await Users.findById(userId).select("referralCode").lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Send referral code in response
+    return res.status(200).json({
+      success: true,
+      referralCode: user.referralCode || null, // if not set, return null
+    });
+  } catch (error) {
+    console.error("Error fetching referral code:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+
 

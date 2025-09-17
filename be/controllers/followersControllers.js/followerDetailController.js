@@ -227,3 +227,93 @@ exports.getCreatorFollowers = async (req, res) => {
     return res.status(500).json({ message: "Server error", error });
   }
 };
+
+
+
+exports.getUserFollowersData = async (req, res) => {
+  try {
+    const userId = req.Id || req.body.userId;
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const followersData = await mongoose.connection
+      .collection("UserFollowings")
+      .aggregate([
+        // 1️⃣ Match by userId
+        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+
+        // 2️⃣ Lookup all followers in one go
+        {
+          $lookup: {
+            from: "ProfileSettings", // ensure this matches your actual collection name
+            let: {
+              followerIds: {
+                $map: {
+                  input: "$followerIds",
+                  as: "f",
+                  in: "$$f.userId",
+                },
+              },
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$userId", "$$followerIds"] },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  userId: 1,
+                  userName: 1,
+                  profileAvatar: 1,
+                },
+              },
+            ],
+            as: "followers",
+          },
+        },
+
+        // 3️⃣ Add followersCount
+        {
+          $addFields: {
+            followersCount: { $size: "$followers" },
+          },
+        },
+
+        // 4️⃣ Shape final response
+        {
+          $project: {
+            _id: 0,
+            creatorId: "$userId",
+            followersCount: 1,
+            followers: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    if (!followersData || followersData.length === 0) {
+      return res.status(200).json({
+        message: "No followers found",
+        data: { creatorId: userId, followersCount: 0, followers: [] },
+      });
+    }
+
+    res.status(200).json({
+      message: "Followers fetched successfully",
+      data: followersData[0],
+    });
+  } catch (err) {
+    console.error("Error fetching followers data:", err);
+    res.status(500).json({
+      message: "Error fetching followers data",
+      error: err.message,
+    });
+  }
+};
+
+
+
+

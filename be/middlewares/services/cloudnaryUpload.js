@@ -1,46 +1,107 @@
-const multer = require('multer');
-const fs = require('fs');
-const cloudinary = require('cloudinary').v2;
-const path = require('path');
+const multer = require("multer");
+const { v2: cloudinary } = require("cloudinary");
+const { Readable } = require("stream");
+const crypto = require("crypto");
+const Feed = require("../../models/feedModel");
+const { getVideoDurationInSeconds } = require("get-video-duration");
 
-// ✅ Cloudinary Config
+// ✅ Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// ✅ Multer Temporary Storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, "./uploads/images");
-    } else if (file.mimetype.startsWith("video/")) {
-      cb(null, "./uploads/videos");
-    } else {
-      cb(new Error("Only image/video files are allowed"), null);
-    }
-  },
-  filename: (req, file, cb) => {
-    const sanitizedName = file.originalname.replace(/\s+/g, "_");
-    cb(null, Date.now() + "_" + sanitizedName);
-  }
-});
-
+// ✅ Multer memory storage
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// ✅ Upload to Cloudinary Middleware
+// ✅ Generate file hash for duplicates
+const generateFileHash = (buffer) =>
+  crypto.createHash("md5").update(buffer).digest("hex");
+
+// ✅ Get video duration from buffer
+const getVideoDurationFromBuffer = async (buffer) => {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return await getVideoDurationInSeconds(stream);
+};
+
+// Middleware: check duplicates & video duration in parallel
+const processFeedFile = async (req, res, next) => {
+  if (!req.file) return next();
+console.log("hi")
+  try {
+    const buffer = req.file.buffer;
+
+    // Start parallel tasks
+    const hashPromise = generateFileHash(buffer);
+    const durationPromise =
+      req.file.mimetype.startsWith("video/") ? getVideoDurationFromBuffer(buffer) : Promise.resolve(null);
+
+    // Wait for results
+    const [fileHash, videoDuration] = await Promise.all([hashPromise, durationPromise]);
+
+    req.fileHash = fileHash;
+    req.videoDuration = videoDuration;
+
+    // ✅ Check duplicates
+    const existingFeed = await Feed.findOne({ fileHash }).lean();
+    if (existingFeed) {
+      return res.status(409).json({ message: "This file already exists", feedId: existingFeed._id });
+    }
+
+    // ✅ Check video duration limit
+    if (videoDuration && videoDuration > 30) {
+      return res.status(400).json({ message: "Video duration exceeds 30 seconds" });
+    }
+
+    next();
+  } catch (err) {
+    console.error("Error processing feed file:", err);
+    return res.status(500).json({ message: "Error processing file" });
+  }
+};
+
+// Upload to Cloudinary with compression
 const uploadToCloudinary = async (req, res, next) => {
-  if (!req.file) return next(); // skip if no file uploaded
+  if (!req.file) return next();
 
   try {
-    const filePath = req.file.path;
-    const result = await cloudinary.uploader.upload(filePath, {
-      folder: req.file.mimetype.startsWith("image/") ? "images" : "videos",
-      resource_type: "auto",
-    });
+    const bufferStream = new Readable();
+    bufferStream.push(req.file.buffer);
+    bufferStream.push(null);
 
-    fs.unlinkSync(filePath); // remove local temp file
+    // Decide folder
+    let folder = "others";
+    if (req.baseUrl.includes("feed")) {
+      folder = req.file.mimetype.startsWith("image/") ? "feeds/images" : "feeds/videos";
+    } else if (req.baseUrl.includes("profile")) {
+      folder = "profile/images";
+    }
+
+    const streamUpload = () =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder,
+            resource_type: "auto",
+            quality: "auto:good", // compression
+            fetch_format: "auto", // webp/mp4
+            transformation: req.file.mimetype.startsWith("image/")
+              ? [{ width: 500, height: 500, crop: "limit" }]
+              : [],
+          },
+          (error, result) => {
+            if (result) resolve(result);
+            else reject(error);
+          }
+        );
+        bufferStream.pipe(stream);
+      });
+
+    const result = await streamUpload();
 
     req.cloudinaryFile = {
       url: result.secure_url,
@@ -50,46 +111,22 @@ const uploadToCloudinary = async (req, res, next) => {
     next();
   } catch (err) {
     console.error("Cloudinary upload error:", err);
-    return res.status(500).json({ error: "Upload failed" });
+    return res.status(500).json({ message: "Upload failed" });
   }
 };
 
-// ✅ Delete a file from Cloudinary
+// Delete from Cloudinary
 const deleteFromCloudinary = async (public_id) => {
   try {
-    const result = await cloudinary.uploader.destroy(public_id, { resource_type: "auto" });
-    return result;
+    return await cloudinary.uploader.destroy(public_id, { resource_type: "image" });
   } catch (err) {
     throw new Error("Cloudinary delete failed: " + err.message);
   }
 };
 
-// ✅ Update a file on Cloudinary (delete old → upload new)
-const updateOnCloudinary = async (public_id, newFilePath, mimetype) => {
-  try {
-    if (public_id) {
-      await cloudinary.uploader.destroy(public_id, { resource_type: "auto" });
-    }
-
-    const result = await cloudinary.uploader.upload(newFilePath, {
-      folder: mimetype.startsWith("image/") ? "images" : "videos",
-      resource_type: "auto",
-    });
-
-    fs.unlinkSync(newFilePath); // remove local temp file
-
-    return {
-      url: result.secure_url,
-      public_id: result.public_id,
-    };
-  } catch (err) {
-    throw new Error("Cloudinary update failed: " + err.message);
-  }
-};
-
 module.exports = {
   upload,
+  processFeedFile, // replaces checkFeedDuplicate + checkVideoDuration
   uploadToCloudinary,
   deleteFromCloudinary,
-  updateOnCloudinary,
 };

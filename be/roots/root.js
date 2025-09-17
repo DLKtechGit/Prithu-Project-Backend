@@ -6,7 +6,7 @@ const path = require('path');
 const { auth } = require('../middlewares/jwtAuthentication');
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
-const{ upload, uploadToCloudinary, deleteFromCloudinary, updateOnCloudinary }=require('../middlewares/services/cloudnaryUpload')
+const{ upload, uploadToCloudinary,processFeedFile,deleteFromCloudinary, updateOnCloudinary }=require('../middlewares/services/cloudnaryUpload')
 
 
 // Controllers
@@ -70,6 +70,7 @@ const {
   getFeedLanguage,
   setFeedLanguage,
   checkUsernameAvailability,
+  getUserReferalCode,
 } = require('../controllers/userControllers/userDetailController');
 
 const{
@@ -164,6 +165,7 @@ const {
   unFollowAccount,
   getAccountFollowers,
   getCreatorFollowers,
+  getUserFollowersData,
 } = require('../controllers/followersControllers.js/followerDetailController');
 
 const {
@@ -206,7 +208,8 @@ router.post('/auth/user/reset-password', userPasswordReset);
 router.post('/auth/user/logout', userLogOut);
 
 /* --------------------- User Referral API Actions --------------------- */
-router.post('/user/later/referral',auth,applyReferralCode)
+router.post('/user/later/referral',auth,applyReferralCode);
+router.get('/user/referal/code',getUserReferalCode);
 
 /* --------------------- Fresh Users API --------------------- */
 router.post('/user/app/language',auth, setAppLanguage );
@@ -223,7 +226,7 @@ router.post('/user/comment/like',auth,commentLike);
 router.post('/user/feed/save',auth, toggleSaveFeed);
 router.post('/user/feed/download',auth, downloadFeed);
 router.post('/user/feed/comment',auth,postComment);
-router.post('/user/feed/reply/comment',postReplyComment);
+router.post('/user/feed/reply/comment',auth,postReplyComment);
 router.post('/user/feed/share',auth, shareFeed);
 router.post('/user/select/category',auth,userSelectCategory);
 router.post('/user/not/intrested',auth,userNotInterestedCategory);
@@ -254,19 +257,40 @@ router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
 /* --------------------- User Follower API --------------------- */
  router.post('/user/follow/creator', followAccount);
  router.post('/user/unfollow/creator',unFollowAccount);
+ router.get('/user/following/data',auth,getUserFollowersData);
 // router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
-router.post('/user/profile/detail/update',auth,upload.single('file'),uploadToCloudinary, userProfileDetailUpdate);
-router.get('/get/profile/detail',auth,getUserProfileDetail);
+router.post(
+  "/user/profile/detail/update",
+  auth,
+  upload.single("file"),
+  (req, res, next) => { req.baseUrl = "/profile"; next(); },
+  uploadToCloudinary,
+  userProfileDetailUpdate
+);
+
+
+//   uploadToCloudinaryOptimized,
+//   userProfileDetailUpdate
+// );router.get('/get/profile/detail',auth,getUserProfileDetail);
 
 /* --------------------- Creator Feed API --------------------- */
-router.post("/creator/feed/upload",auth, upload.single('file'), creatorFeedUpload);
-router.post("/creator/feed/schedule", auth, upload.single('file'), creatorFeedScheduleUpload);
+router.post(
+  "/creator/feed/upload",
+  auth,
+  upload.single("file"),
+   (req, res, next) => { req.baseUrl = "/feed"; next(); },
+   processFeedFile,
+  uploadToCloudinary,
+  creatorFeedUpload
+);
+
+// );router.post("/creator/feed/schedule", auth,upload.single('file'), uploadToCloudinary, creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
 router.get('/creator/getall/feeds',auth,getCreatorFeeds);
 router.get('/creator/get/post',auth,getCreatorPost);
-router.get('/creator/get/feed/category', getAllCategories);
+router.get('/creator/get/feed/category',getAllCategories);
 router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId);
 
 /* --------------------- Cretor Feed Actions --------------------- */
@@ -292,7 +316,7 @@ router.post('/auth/new/admin/verify-otp', newAdminVerifyOtp);
 router.post('/auth/admin/reset-password', adminPasswordReset);
 
 /* --------------------- Admin Profile API --------------------- */
-router.post('/admin/profile/detail/update',auth,upload.single('file'),adminProfileDetailUpdate);
+// router.post('/admin/profile/detail/update',auth,upload.single('file'),uploadToCloudinary,adminProfileDetailUpdate);
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
@@ -331,7 +355,7 @@ router.get('/admin/get/user/detail', getUserProfileDetail);
 
 
 /* --------------------- Child Admin Profile API --------------------- */
-router.post('/child/admin/profile/detail/update',auth, upload.single('file'), childAdminProfileDetailUpdate);
+// router.post('/child/admin/profile/detail/update',auth, upload.single('file'),uploadToCloudinary,childAdminProfileDetailUpdate);
 router.get('/get/child/admin/profile',auth,getChildAdminProfileDetail)
 
 /* --------------------- Child Admin Feed API --------------------- */
