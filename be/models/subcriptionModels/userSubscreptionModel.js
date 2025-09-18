@@ -17,4 +17,4 @@ userSubscriptionSchema.pre("save", function (next) {
   next();
 });
 
-module.exports = mongoose.model("UserSubscription", userSubscriptionSchema);
+module.exports = mongoose.model("UserSubscription", userSubscriptionSchema,"UserSubscriptions");

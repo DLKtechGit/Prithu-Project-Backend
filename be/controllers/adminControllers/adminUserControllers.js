@@ -7,7 +7,9 @@ const Account=require('../../models/accountSchemaModel');
 const ProfileSettings=require('../../models/profileSettingModel.js');
 const path=require('path')
 const mongoose=require("mongoose");
-const Device = require("../../models/userModels/userSession-Device/deviceModel");
+const UserDevices = require("../../models/userModels/userSession-Device/deviceModel");
+const Subscriptions=require('../../models/subcriptionModels/userSubscreptionModel.js');
+const UserLanguage=require('../../models/userModels/userLanguageModel.js')
 
 
 let redisClient;
@@ -140,19 +142,39 @@ exports.getUsersByDate = async (req, res) => {
 exports.getAllUserDetails = async (req, res) => {
   try {
     const allUsers = await Users.find()
-      .select("userName email isActive profileSettings") // only take userName + email from User
-      .populate("profileSettings");             // full profile details
+      .select("userName _id email lastActiveAt createdAt isActive profileSettings subscription") 
+      .populate({
+        path: "profileSettings",
+        select: "profileAvatar", // only profileAvatar
+      })
+      .populate({
+        path: "subscription",
+        select: "isActive", // only subscription status
+      });
 
     if (!allUsers || allUsers.length === 0) {
       return res.status(404).json({ message: "Users details not found" });
     }
 
-    res.status(200).json({ allUsers });
+    // reshape response
+    const formattedUsers = allUsers.map((user) => ({
+      userId:user._id,
+      userName: user.userName,
+      email: user.email,
+      createdAt: user.createdAt,
+      lastActiveAt:user.lastActiveAt,
+      isActive: user.isActive,
+      profileAvatar: user.profileSettings?.profileAvatar || null,
+      subscriptionActive: user.subscription?.isActive || false,
+    }));
+
+    res.status(200).json({ users: formattedUsers });
   } catch (err) {
     console.error("Error fetching users:", err);
     res.status(500).json({ message: "Cannot fetch user details", error: err.message });
   }
 };
+
 
 
 
@@ -292,7 +314,7 @@ exports.getUsersStatus = async (req, res) => {
 
     // 2️⃣ Get devices in a single query (only needed fields)
     const userIds = users.map((u) => u._id);
-    const devices = await Device.find(
+    const devices = await UserDevices.find(
       { userId: { $in: userIds } },
       "userId deviceId deviceType ipAddress lastActiveAt"
     ).lean();
@@ -338,6 +360,85 @@ exports.getUsersStatus = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
+exports.getUserDetailWithIdForAdmin = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // ✅ Base user info
+    const user = await Users.findById(userId)
+      .select("userName email role referralCode referredByUserId directReferrals currentLevel currentTier totalEarnings withdrawableEarnings isActive lastActiveAt lastLoginAt")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ Profile settings
+    const profile = await ProfileSettings.findOne({ userId })
+      .select("gender bio dateOfBirth maritalStatus maritalDate phoneNumber profileAvatar timezone")
+      .lean();
+
+    // ✅ Subscription info
+    const subscription = await Subscriptions.findOne({ userId })
+      .select("subscriptionActive startDate endDate subscriptionActiveDate")
+      .lean();
+
+    // ✅ Language preferences
+    const language = await UserLanguage.findOne({ userId })
+      .select("feedLanguageCode appLanguageCode")
+      .lean();
+
+    // ✅ Device info
+    const device = await UserDevices.findOne({ userId })
+      .select("deviceType deviceName ipAddress")
+      .sort({ createdAt: -1 }) // latest device
+      .lean();
+
+    // ✅ Merge all details
+    const userDetails = {
+      userName: user.userName,
+      email: user.email,
+      role: user.role,
+      referralCode: user.referralCode,
+      referredByUserId: user.referredByUserId,
+      directReferrals: user.directReferrals || [],
+      currentLevel: user.currentLevel,
+      currentTier: user.currentTier,
+      totalEarnings: user.totalEarnings || 0,
+      withdrawableEarnings: user.withdrawableEarnings || 0,
+      isActive: user.isActive,
+      isActiveAt: user.lastActiveAt,
+      lastLoginAt: user.lastLoginAt,
+
+      profile: profile || {},
+      subscription: subscription || {
+        subscriptionActive: false,
+        startDate: null,
+        endDate: null,
+        subscriptionActiveDate: null,
+      },
+      language: language || { feedLanguageCode: "en", appLanguageCode: "en" },
+      device: device || {},
+    };
+
+    return res.status(200).json({ success: true, user: userDetails });
+  } catch (err) {
+    console.error("Error fetching user details:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Cannot fetch user details",
+      error: err.message,
+    });
+  }
+};
+
+
 
 
 

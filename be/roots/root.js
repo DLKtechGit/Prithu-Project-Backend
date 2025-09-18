@@ -103,6 +103,7 @@ const {
   getAllUserDetails,
   getAnaliticalCountforUser,
   getUserLikedFeedsforAdmin,
+  getUserDetailWithIdForAdmin,
 } = require('../controllers/adminControllers/adminUserControllers');
 
 const {
@@ -198,6 +199,18 @@ const{
 }=require('../controllers/conmmentController')
 
 
+const{
+  userWatchingSession,
+  userImageViewCount,
+}=require('../controllers/userControllers/userFeedController');
+
+const{
+  getDashboardMetricCount,
+  getDashUserRegistrationRatio,
+  getDashUserSubscriptionRatio,
+}=require('../controllers/adminControllers/dashboardController');
+
+
 /* --------------------- User Authentication --------------------- */
 router.post('/auth/user/register', createNewUser);
 router.post('/auth/user/login', userLogin);
@@ -241,7 +254,7 @@ router.post('/get/comments/relpy/for/feed',auth,getRepliesByComment);
 router.post('/user/hide/feed',userHideFeed);
 
 /* --------------------- User Subscription --------------------- */
-router.post('/user/plan/subscription', auth, subscribePlan);
+router.post('/user/plan/subscription', subscribePlan);
 router.post('/user/cancel/subscription', auth, cancelSubscription);
 router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
@@ -253,12 +266,13 @@ router.get('/user/right/tree/referals',auth,getUserReferralTree);
 
 /*---------------------- User Feed API -------------------------*/
 router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
+router.post('/user/watching/session',auth,userWatchingSession);
+router.post('/user/image/view/count',userImageViewCount);
 
 /* --------------------- User Follower API --------------------- */
  router.post('/user/follow/creator', followAccount);
  router.post('/user/unfollow/creator',unFollowAccount);
  router.get('/user/following/data',auth,getUserFollowersData);
-// router.get('/user/get/followers', auth, getAccountFollowers);
 
 /* --------------------- User Profile API --------------------- */
 router.post(
@@ -289,7 +303,7 @@ router.post(
 // );router.post("/creator/feed/schedule", auth,upload.single('file'), uploadToCloudinary, creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
 router.get('/creator/getall/feeds',auth,getCreatorFeeds);
-router.get('/creator/get/post',auth,getCreatorPost);
+router.post('/creator/get/post',auth,getCreatorPost);
 router.get('/creator/get/feed/category',getAllCategories);
 router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId);
 
@@ -320,12 +334,12 @@ router.post('/auth/admin/reset-password', adminPasswordReset);
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
-router.post('/admin/feed', upload.array('file'),auth,adminFeedUpload);
+router.post('/admin/feed-upload', upload.array('file'),auth,adminFeedUpload);
 
 /* --------------------- Admin Category API --------------------- */
 router.post('/admin/feed/category', adminAddCategory);
 router.delete('/admin/feed/category', deleteCategory);
-router.get('/admin/feed/category', getAllCategories);
+router.get('/admin/get/feed/category', getAllCategories);
 
 /* --------------------- Admin Subscription API --------------------- */
 router.post('/admin/create/subscription', createPlan);
@@ -335,7 +349,7 @@ router.get('/admin/getall/subscriptions', getAllPlans);
 
 /* --------------------- Admin User API --------------------- */
 router.get('/admin/getall/users', getAllUserDetails);
-router.get('/admin/get/user/profile/detail',auth,getUserDetailWithId)
+router.get('/admin/get/user/profile/detail/:id',getUserDetailWithIdForAdmin)
 router.get("/admin/users/status", getUsersStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
 router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountforUser)
@@ -346,6 +360,12 @@ router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountfo
 // router.get('/amin/user/share')
 // router.get('/amin/user/dwonload')
 // router.get('/amin/user/comment')
+
+
+/*---------------------Admin DashBoard API---------------------*/
+router.get("/admin/dashboard/metricks/counts",getDashboardMetricCount);
+router.get("/admin/users/monthly-registrations",getDashUserRegistrationRatio);
+router.get("/admin/user/subscriptionration",getDashUserSubscriptionRatio)
 
 /* --------------------- Admin Creator API --------------------- */
 router.get('/admin/getall/creators', getAllCreatorDetails);

@@ -14,7 +14,7 @@ exports.subscribePlan = async (req, res) => {
   if (!planId) {
     return res.status(400).json({ message: "Plan ID is required" });
   }
-  const userId = req.userId;
+  const userId = req.Id || req.body.userId;
   if (!userId) {
     return res.status(400).json({ message: "User ID is required" });
   }

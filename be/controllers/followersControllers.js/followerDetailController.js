@@ -140,57 +140,8 @@ exports.unFollowAccount = async (req, res) => {
 };
 
 
-// Get all followers of the current account
-exports.getAccountFollowers = async (req, res) => {
-  try {
-    const accountId = req.accountId;
-
-    if (!accountId) {
-      return res.status(400).json({ message: "Account ID is required" });
-    }
-
-    const followers = await Follower.find({ followingAccountId: accountId })
-      .populate({
-        path: "userId",
-        populate: {
-          path: "profileData", // ProfileSettings ref
-          select: "profileAvatar"
-        }
-      })
-      .populate({
-        path: "userId",
-        populate: {
-          path: "userId", // User ref inside Account
-          select: "userName email"
-        }
-      });
-
-    const formatted = followers.map(f => {
-      return {
-        userName: f.userId?.userId?.userName || "Unavailable",
-        email: f.userId?.userId?.email || "Unavailable",
-        profileAvatar: f.userId?.profileData?.profileAvatar || "Unavailable"
-      };
-    });
-
-    res.status(200).json({
-      count: formatted.length,
-      followers: formatted
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
-};
-
-
-
-
-
-
 exports.getCreatorFollowers = async (req, res) => {
-  const  creatorId  = req.accountId;
-
-  console.log("Received creatorId:", creatorId);
+  const creatorId = req.Id;
 
   if (!creatorId) {
     return res.status(400).json({ message: "Creator ID is required" });
@@ -201,32 +152,34 @@ exports.getCreatorFollowers = async (req, res) => {
   }
 
   try {
-    const followers = await Follower.find({ creatorId })
+    // 1️⃣ Fetch followers with user info + avatar
+    const followers = await CreatorFollower.find({ creatorId })
       .populate({
         path: "userId",
         select: "userName profileSettings",
         populate: {
           path: "profileSettings",
           select: "profileAvatar",
-        }
+        },
       });
 
-      console.log("Fetched followers:", followers);
-
+    // 2️⃣ Format response
     const formattedFollowers = followers.map(f => ({
       userName: f.userId?.userName || "Unavailable",
-      profileAvatar: f.userId?.profileSettings?.profileAvatar || "Unavailable"
+      profileAvatar: f.userId?.profileSettings?.profileAvatar || "Unavailable",
     }));
 
+    // 3️⃣ Response with total count + follower list
     return res.status(200).json({
-      count: formattedFollowers.length,
-      followers: formattedFollowers
+      count: formattedFollowers.length,   
+      followers: formattedFollowers,      
     });
   } catch (error) {
-    console.error("Error fetching followers:", error);
-    return res.status(500).json({ message: "Server error", error });
+    console.error("❌ Error fetching followers:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
 

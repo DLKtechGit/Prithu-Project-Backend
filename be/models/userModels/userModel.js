@@ -39,7 +39,7 @@ const UserSchema = new mongoose.Schema(
     },
     fcmTokens: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },
-    createdAt: { type: Date, default: Date.now },
+    lastActiveAt: { type: Date, default: Date.now },
     lastLoginAt: { type: Date },
     otpCode: { type: String },
     otpExpiresAt: { type: Date },
@@ -49,6 +49,7 @@ const UserSchema = new mongoose.Schema(
     hiddenPostIds: [
     { type: mongoose.Schema.Types.ObjectId, ref: "Feed" }
   ],
+  isBlocked:{type:String}
     //* User Session Detail *//
   },
   { timestamps: true }

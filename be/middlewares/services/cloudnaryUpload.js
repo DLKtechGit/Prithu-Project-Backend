@@ -53,7 +53,7 @@ console.log("hi")
     }
 
     // ✅ Check video duration limit
-    if (videoDuration && videoDuration > 30) {
+    if (videoDuration && videoDuration > 60) {
       return res.status(400).json({ message: "Video duration exceeds 30 seconds" });
     }
 
@@ -81,27 +81,27 @@ const uploadToCloudinary = async (req, res, next) => {
       folder = "profile/images";
     }
 
-    const streamUpload = () =>
-      new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            folder,
-            resource_type: "auto",
-            quality: "auto:good", // compression
-            fetch_format: "auto", // webp/mp4
-            transformation: req.file.mimetype.startsWith("image/")
-              ? [{ width: 500, height: 500, crop: "limit" }]
-              : [],
-          },
-          (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
-          }
-        );
-        bufferStream.pipe(stream);
-      });
+    const isVideo = req.file.mimetype.startsWith("video/");
 
-    const result = await streamUpload();
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: isVideo ? "video" : "image", // ✅ explicitly set video
+          quality: "auto:good",
+          fetch_format: "auto",
+          transformation: isVideo ? [] : [{ width: 500, height: 500, crop: "limit" }],
+          eager: isVideo ? [{ format: "mp4", quality: "auto" }] : [],
+          eager_async: isVideo ? true : false, // ✅ async for large video
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+
+      bufferStream.pipe(stream);
+    });
 
     req.cloudinaryFile = {
       url: result.secure_url,
@@ -114,6 +114,8 @@ const uploadToCloudinary = async (req, res, next) => {
     return res.status(500).json({ message: "Upload failed" });
   }
 };
+
+
 
 // Delete from Cloudinary
 const deleteFromCloudinary = async (public_id) => {
