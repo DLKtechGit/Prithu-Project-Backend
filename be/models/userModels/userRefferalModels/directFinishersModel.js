@@ -13,10 +13,12 @@ const DirectFinisherSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+// Indexes
 DirectFinisherSchema.index({ parentId: 1, childId: 1 }, { unique: true });
 DirectFinisherSchema.index({ parentId: 1, side: 1, status: 1 });
 DirectFinisherSchema.index({ parentId: 1, level: 1, tier: 1 });
 
+// Auto-update updatedAt
 DirectFinisherSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();

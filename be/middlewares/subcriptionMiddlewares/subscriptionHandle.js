@@ -1,7 +1,7 @@
 const UserSubscription = require("../models/subcriptionModels/userSubscreptionModel");
 const SubscriptionPlan = require("../models/subcriptionModels/subscriptionPlanModel");
 const { assignPlanToUser } = require("../middlewares/subcriptionMiddlewares/assignPlanToUserHelper");
-const { onUserSubscriptionComplete } = require("./referralService");
+const { onUserSubscriptionComplete } = require("../referralMiddleware/handleSubscriptionCheck");
 
 exports.processPayment = async (userId, subscriptionId, paymentResult) => {
   let subscription = null;

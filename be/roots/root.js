@@ -200,7 +200,7 @@ const{
 
 
 const{
-  userWatchingSession,
+  userVideoViewCount,
   userImageViewCount,
 }=require('../controllers/userControllers/userFeedController');
 
@@ -221,7 +221,7 @@ router.post('/auth/user/reset-password', userPasswordReset);
 router.post('/auth/user/logout', userLogOut);
 
 /* --------------------- User Referral API Actions --------------------- */
-router.post('/user/later/referral',auth,applyReferralCode);
+router.post('/user/later/referral',applyReferralCode);
 router.get('/user/referal/code',getUserReferalCode);
 
 /* --------------------- Fresh Users API --------------------- */
@@ -266,12 +266,12 @@ router.get('/user/right/tree/referals',auth,getUserReferralTree);
 
 /*---------------------- User Feed API -------------------------*/
 router.get('/get/all/feeds/user',auth,getAllFeedsByUserId);
-router.post('/user/watching/session',auth,userWatchingSession);
-router.post('/user/image/view/count',userImageViewCount);
+router.post('/user/watching/vidoes',auth,userVideoViewCount);
+router.post('/user/image/view/count',auth,userImageViewCount);
 
 /* --------------------- User Follower API --------------------- */
- router.post('/user/follow/creator', followAccount);
- router.post('/user/unfollow/creator',unFollowAccount);
+ router.post('/user/follow/creator',auth, followAccount);
+ router.post('/user/unfollow/creator',auth,unFollowAccount);
  router.get('/user/following/data',auth,getUserFollowersData);
 
 /* --------------------- User Profile API --------------------- */
@@ -302,7 +302,7 @@ router.post(
 
 // );router.post("/creator/feed/schedule", auth,upload.single('file'), uploadToCloudinary, creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
-router.get('/creator/getall/feeds',auth,getCreatorFeeds);
+router.get('/creator/getall/feeds',getCreatorFeeds);
 router.post('/creator/get/post',auth,getCreatorPost);
 router.get('/creator/get/feed/category',getAllCategories);
 router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId);
@@ -318,7 +318,7 @@ router.post('/creator/feed/share', auth, shareFeed);
 // router.post('/user/interested')
 
 /* --------------------- Creator Follower API --------------------- */
-router.get('/creator/get/followers', auth,getCreatorFollowers);
+router.get('/creator/get/followers',auth,getCreatorFollowers);
 
 
 /* --------------------- Admin Authentication --------------------- */

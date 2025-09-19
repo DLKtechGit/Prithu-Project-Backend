@@ -1,7 +1,8 @@
 const Follower = require("../../models/userFollowingModel");
 const Account=require('../../models/accountSchemaModel')
 const mongoose = require("mongoose");
-const CreatorFollower=require('../../models/creatorFollowerModel')
+const CreatorFollower=require('../../models/creatorFollowerModel');
+const User =require("../../models/userModels/userModel");
 
 
 
@@ -141,7 +142,7 @@ exports.unFollowAccount = async (req, res) => {
 
 
 exports.getCreatorFollowers = async (req, res) => {
-  const creatorId = req.Id;
+  const creatorId = req.accountId||req.body.accountId // creator's userId from token
 
   if (!creatorId) {
     return res.status(400).json({ message: "Creator ID is required" });
@@ -152,27 +153,36 @@ exports.getCreatorFollowers = async (req, res) => {
   }
 
   try {
-    // 1️⃣ Fetch followers with user info + avatar
-    const followers = await CreatorFollower.find({ creatorId })
-      .populate({
-        path: "userId",
-        select: "userName profileSettings",
-        populate: {
-          path: "profileSettings",
-          select: "profileAvatar",
-        },
-      });
+    // 1️⃣ Fetch all followers of this creator
+    const creatorFollowers = await CreatorFollower.findOne({ creatorId }).lean();
 
-    // 2️⃣ Format response
+    const followerIds = creatorFollowers?.followerIds || [];
+
+    if (followerIds.length === 0) {
+      return res.status(200).json({
+        count: 0,
+        followers: [],
+      });
+    }
+
+    // 2️⃣ Fetch user info + profile avatar for all followerIds
+    const followers = await User.find({ _id: { $in: followerIds } })
+      .select("userName profileSettings")
+      .populate({
+        path: "profileSettings",
+        select: "profileAvatar",
+      })
+      .lean();
+
+    // 3️⃣ Format response
     const formattedFollowers = followers.map(f => ({
-      userName: f.userId?.userName || "Unavailable",
-      profileAvatar: f.userId?.profileSettings?.profileAvatar || "Unavailable",
+      userName: f.userName || "Unavailable",
+      profileAvatar: f.profileSettings?.profileAvatar || "Unavailable",
     }));
 
-    // 3️⃣ Response with total count + follower list
     return res.status(200).json({
-      count: formattedFollowers.length,   
-      followers: formattedFollowers,      
+      count: formattedFollowers.length,
+      followers: formattedFollowers,
     });
   } catch (error) {
     console.error("❌ Error fetching followers:", error);
@@ -183,9 +193,11 @@ exports.getCreatorFollowers = async (req, res) => {
 
 
 
+
 exports.getUserFollowersData = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
+    console.log("hi")
     if (!userId) {
       return res.status(400).json({ message: "userId is required" });
     }

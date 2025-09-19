@@ -124,6 +124,7 @@ exports.getAllFeedsByUserId = async (req, res) => {
       // Project final fields
       {
         $project: {
+          accountId:"$account._id",
           feedId: "$_id",
           type: 1,
           language: 1,

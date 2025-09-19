@@ -8,7 +8,8 @@ const {getActiveCreatorAccount}=require("../../middlewares/creatorAccountactiveS
 const Categories=require('../../models/categorySchema');
 const User=require('../../models/userModels/userModel');
 const mongoose=require("mongoose");
-const { getLanguageCode, getLanguageName } = require("../../middlewares/helper/languageHelper")
+const { getLanguageCode, getLanguageName } = require("../../middlewares/helper/languageHelper");
+const CreatorFollowing=require('../../models/creatorFollowerModel');
 
 
  
@@ -193,31 +194,30 @@ exports.getCreatorPost = async (req, res) => {
     // ✅ Fetch account
     const account = await Account.findById(accountId).lean();
     if (!account) {
-      return res.status(400).json({ message: "Account not found" });
+      return res.status(404).json({ message: "Account not found" });
     }
 
-    // ✅ Ensure active creator account
-    const activeAccount = await getActiveCreatorAccount(account.userId);
-    if (!activeAccount) {
-      return res.status(403).json({
-        message: "Only active Creator account can fetch feeds",
-      });
+    // ✅ Ensure active creator account only when coming from token
+    let creatorId = accountId;
+    if (req.accountId) {
+      const activeAccount = await getActiveCreatorAccount(account.userId);
+      if (!activeAccount) {
+        return res.status(403).json({
+          message: "Only active Creator account can fetch feeds",
+        });
+      }
+      creatorId = activeAccount._id;
     }
-
-    const creatorId = activeAccount._id;
 
     // ✅ Run queries in parallel (feeds + count)
     const [feeds, feedCount] = await Promise.all([
-      Feed.find(
-        { createdByAccount: creatorId },
-        { contentUrl: 1, createdAt: 1 }
-      )
+      Feed.find({ createdByAccount: creatorId }, { contentUrl: 1, createdAt: 1 })
         .sort({ createdAt: -1 })
         .lean(),
-      Feed.countDocuments({ createdByAccount: creatorId })
+      Feed.countDocuments({ createdByAccount: creatorId }),
     ]);
 
-    if (!feeds || feeds.length === 0) {
+    if (!feeds.length) {
       return res.status(404).json({
         message: "No feeds found for this creator",
         feedCount: 0,
@@ -225,21 +225,19 @@ exports.getCreatorPost = async (req, res) => {
       });
     }
 
-   
     const feedsFormatted = feeds.map(feed => ({
       feedId: feed._id,
-      contentUrl:feed.contentUrl,
+      contentUrl: feed.contentUrl,
       timeAgo: feedTimeCalculator(feed.createdAt),
     }));
 
     return res.status(200).json({
       message: "Creator feeds retrieved successfully",
-      feedCount, // ✅ optimized with countDocuments
+      feedCount,
       feeds: feedsFormatted,
     });
-
   } catch (error) {
-    console.error("Error fetching creator feeds:", error);
+    console.error("❌ Error fetching creator feeds:", error);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -249,40 +247,50 @@ exports.getCreatorPost = async (req, res) => {
 
 
 
-
-
 exports.getCreatorFeeds = async (req, res) => {
   try {
-    const accountId = req.accountId || req.body.accountId
-    const userId=req.Id || req.body.userId
+    const accountId = req.accountId || req.body.accountId;
+    const userId = req.Id || req.body.userId;
+
     if (!accountId) {
       return res.status(400).json({ message: "User ID is required" });
     }
- 
+
+    // ✅ Check if user has an active Creator account
     const activeAccount = await getActiveCreatorAccount(userId);
     if (!activeAccount) {
       return res
         .status(403)
         .json({ message: "Only active Creator account can fetch feeds" });
     }
+
     const creatorId = activeAccount._id;
- 
+
     // ✅ Fetch feeds created by this creator account
     const feeds = await Feed.find({ createdByAccount: creatorId }).sort({ createdAt: -1 });
- 
+
     if (!feeds || feeds.length === 0) {
       return res.status(404).json({ message: "No feeds found for this creator" });
     }
- 
+
     // ✅ Add timeAgo property
     const feedsWithTimeAgo = feeds.map((feed) => ({
       ...feed.toObject(),
       timeAgo: feedTimeCalculator(feed.createdAt),
     }));
- 
+
+    // ✅ Get follower count from followerIds array
+    const creatorFollowDoc = await CreatorFollowing.findOne(
+      { creatorId: creatorId },
+      "followerIds"
+    );
+
+    const followerCount = creatorFollowDoc ? creatorFollowDoc.followerIds.length : 0;
+
     return res.status(200).json({
       message: "Creator feeds retrieved successfully",
       count: feedsWithTimeAgo.length,
+      followerCount, // ✅ real number of followers
       feeds: feedsWithTimeAgo,
     });
   } catch (error) {
@@ -290,6 +298,8 @@ exports.getCreatorFeeds = async (req, res) => {
     return res.status(500).json({ message: "Server error", error });
   }
 };
+
+
 
 
 

@@ -7,7 +7,7 @@ require('dotenv').config();
 const cookieParser=require('cookie-parser');
 const path = require ("path")
 const {scheduleFeedPosts}=require('./corn/feedCorn');
-const {startWatcher}=require('./middlewares/referralCodeWatcher')
+const {startWatcher}=require('./middlewares/referralMiddleware/refferalCodeWatcher');
 
 const allowedOrigins = process.env.CLIENT_URL?.split(",") || ["http://localhost:5173"];
 

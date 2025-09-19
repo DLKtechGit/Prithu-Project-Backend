@@ -5,23 +5,16 @@ const UserLevelSchema = new mongoose.Schema({
   level: { type: Number, required: true },
   tier: { type: Number, required: true },
   threshold: { type: Number, required: true },
-  levelLimit: { type: Number },
-  leftTreeCount: { type: Number, default: 0 },
-  rightTreeCount: { type: Number, default: 0 },
+  leftTreeCount: { type: Number, default: 0 },   // total finished on left for this level
+  rightTreeCount: { type: Number, default: 0 },  // total finished on right for this level
   leftCarryOver: { type: Number, default: 0 },
   rightCarryOver: { type: Number, default: 0 },
-  referringPeople: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  shareAmount: { type: Number, default: 250 },
+  shareAmount: { type: Number, default: 250 }, // fixed ₹250 per level
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
 UserLevelSchema.index({ userId: 1, level: 1, tier: 1 }, { unique: true });
-UserLevelSchema.index({ userId: 1 });
-
-UserLevelSchema.pre("save", function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+UserLevelSchema.pre("save", function(next){ this.updatedAt = Date.now(); next(); });
 
 module.exports = mongoose.model("UserLevel", UserLevelSchema, "UserLevels");

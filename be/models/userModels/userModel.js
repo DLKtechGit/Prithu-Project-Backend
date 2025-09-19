@@ -13,23 +13,35 @@ const UserSchema = new mongoose.Schema(
     accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Account" }],
     profileSettings: { type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings" },
     referralCode: { type: String, unique: true, index: true },
-    referredByCode: { type: String },
-    referralCodeUsageLimit: { type: Number, default: 0 },
-    referralCodeIsValid: { type: Boolean, default: true },
+    referredByCode: { type: String, default: null },
     referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
+
+     sideUnderParent: { type: String, enum: ["left", "right", null], default: null },
+
+
+      // earnings & progression
+  currentLevel: { type: Number, default: 1 },
+  currentTier: { type: Number, default: 1 },
+  lastPromotedAt: { type: Date },
+  isTierComplete: { type: Boolean, default: false },
+  totalEarnings: { type: Number, default: 0 },
+  withdrawableEarnings: { type: Number, default: 0 },
+
+
+
+    referralCodeUsageLimit: { type: Number, default: 0 },
+    
+    referralCodeIsValid: { type: Boolean, default: false},
+
+
+    referralCodeUsageCount: { type: Number, default: 0 },
+
     referralCount: { type: Number, default: 0 },
-    directReferralsCount: { type: Number, default: 0 },
-    sideUnderParent: { type: String, enum: ["left", "right", null], default: null },
-    directReferralFinishersLeft: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    directReferralIncompleteLeft: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    directReferralFinishersRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    directReferralIncompleteRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    currentLevel: { type: Number, default: 1 },
-    currentTier: { type: Number, default: 1 },
-    lastPromotedAt: { type: Date },
-    isTierComplete: { type: Boolean, default: false },
-    totalEarnings: { type: Number, default: 0 },
-    withdrawableEarnings: { type: Number, default: 0 },
+
+  
+   
+   
     subscription: {
       isActive: { type: Boolean, default: false },
       startDate: { type: Date },

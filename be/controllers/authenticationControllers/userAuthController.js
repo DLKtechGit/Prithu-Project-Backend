@@ -3,9 +3,10 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
+const crypto = require("crypto"); 
 const { generateReferralCode } = require('../../middlewares/generateReferralCode');
 const otpStore=new Map();
-const {placeReferral}=require('../../middlewares/referralCount');
+const {placeReferral}=require('../../middlewares/referralMiddleware/referralCount');
 const {startUpProcessCheck}=require('../../middlewares/services/User Services/userStartUpProcessHelper');
 const Device = require("../../models/userModels/userSession-Device/deviceModel");
 const Session = require("../../models/userModels/userSession-Device/sessionModel");
@@ -25,90 +26,101 @@ const transporter = nodemailer.createTransport({
 
 
 
+/**
+ * createNewUser(req, res)
+ * - creates user
+ * - assigns a unique referral code
+ * - atomically increments referrer's usage if referralCode provided (max 2)
+ * - places referral via placeReferral (idempotent)
+ */
 exports.createNewUser = async (req, res) => {
   try {
     const { username, email, password, referralCode } = req.body;
-
     if (!username || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields required" });
     }
 
-    // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
+// 🔹 generate referral code
+const base = username.replace(/\s+/g, "").toUpperCase().slice(0, 3);
+let referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
 
-    // Generate unique referral code
-    let referralCodeGenerated = generateReferralCode(username);
-    while (await User.findOne({ referralCode: referralCodeGenerated })) {
-      referralCodeGenerated = generateReferralCode(username);
+
+    // ensure unique (retry few times)
+    for (let i = 0; i < 5; i++) {
+      const exists = await User.findOne({ referralCode: referralCodeGenerated }).lean();
+      if (!exists) break;
+      referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
     }
 
     let referredByUserId = null;
     let referringUser = null;
 
-    // 🔹 Validate referral code
     if (referralCode) {
-      referringUser = await User.findOne({
-        referralCode,
-        referralCodeIsValid: true,
-      });
+      // 🔹 validate referral code (must exist, must be valid, must have slots)
+    referringUser = await User.findOne({
+  referralCode,
+  referralCodeIsValid: true,
+  $expr: { $lt: ["$referralCodeUsageCount", "$referralCodeUsageLimit"] }
+});
 
+console.log(referringUser)
       if (!referringUser) {
-        return res.status(400).json({ message: "Referral code invalid." });
+        return res.status(400).json({ message: "Referral code invalid, expired, or limit reached" });
       }
 
-      // Atomic increment + validation
-      const updatedReferrer = await User.findOneAndUpdate(
-        { _id: referringUser._id, referralCodeUsageLimit: { $lt: 2 } },
-        {
-          $inc: { referralCodeUsageLimit: 1, referralCount: 1 },
-        },
+      // 🔹 atomically increment usage
+      const updatedRef = await User.findOneAndUpdate(
+        { _id: referringUser._id, referralCodeUsageCount: { $lt: 2 }, referralCodeIsValid: true },
+        { $inc: { referralCodeUsageCount: 1 } },
         { new: true }
       );
 
-      if (!updatedReferrer) {
-        return res.status(400).json({ message: "Referral code is no longer valid." });
+      if (!updatedRef) {
+        return res.status(400).json({ message: "Referral code no longer available" });
       }
 
-      // Invalidate code if usage limit reached
-      if (updatedReferrer.referralCodeUsageLimit >= 2) {
-        updatedReferrer.referralCodeIsValid = false;
-        await updatedReferrer.save();
+      // 🔹 invalidate code if usage cap reached
+      if (updatedRef.referralCodeUsageCount >= 2) {
+        updatedRef.referralCodeIsValid = false;
+        await updatedRef.save();
       }
 
       referredByUserId = referringUser._id;
     }
 
-    // 🔹 Create new user
+    // 🔹 create new user
     const user = new User({
       userName: username,
       email,
       passwordHash,
       referralCode: referralCodeGenerated,
-      referredByCode: referralCode || null,
       referredByUserId,
+      referredByCode: referralCode || null
     });
     await user.save();
 
-    // 🔹 Place referral in tree
-    if (referringUser) {
+    
+
+    // 🔹 place referral (only if referrer’s code is valid)
+    if (referringUser && referringUser.referralCodeIsValid) {
       try {
         await placeReferral({ parentId: referringUser._id, childId: user._id });
       } catch (err) {
-        console.error("Error placing referral:", err);
-        return res.status(500).json({ message: "Error updating referral structure" });
+        console.warn("placeReferral warning:", err.message);
       }
     }
 
     return res.status(201).json({
-      message: "User registered successfully",
-      referralCode: referralCodeGenerated,
+      message: "User registered",
+      referralCode: referralCodeGenerated
     });
 
-  } catch (error) {
-    if (error.code === 11000) {
+  } catch (err) {
+    console.error(err);
+    if (err.code === 11000) {
       return res.status(400).json({ message: "Username or email already exists" });
     }
-    console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
