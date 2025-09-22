@@ -190,7 +190,7 @@ exports.checkUsernameAvailability = async (req, res) => {
     const formattedUsername = username.trim().toLowerCase();
 
     // Check if username exists
-    const userExists = await User.findOne({ username: formattedUsername }).lean();
+    const userExists = await Users.findOne({ username: formattedUsername }).lean();
 
     if (userExists) {
       return res.status(200).json({
