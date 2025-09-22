@@ -239,6 +239,7 @@ router.post('/user/feed/language',auth, setFeedLanguage );
 router.get('/user/get/feed/language', auth, getFeedLanguage );
 router.get('/user/get/content/catagories',auth,getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
+router.post("/check/username/availability",checkUsernameAvailability);
 
 
 /* --------------------- User Feed Actions --------------------- */
