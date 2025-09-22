@@ -30,49 +30,104 @@ exports.validateUserProfileUpdate = [
 
 
 
-exports.userNameChecking=async (req,res)=>{
-  
-}
-
-
-
 
 // ✅ Update profile controller
 exports.userProfileDetailUpdate = async (req, res) => {
   try {
+    // ---- 1. Extract userId ----
     const userId = req.Id || req.body.userId;
-    if (!userId) return res.status(400).json({ message: "userId is required" });
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
 
-    const allowedFields = ["phoneNumber","bio","displayName","dateOfBirth","maritalStatus","theme","language","timezone","gender"];
+    // ---- 2. Validate request ----
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: errors.array(),
+      });
+    }
+
+    // ---- 3. Collect allowed fields ----
+    const allowedFields = [
+      "phoneNumber",
+      "bio",
+      "displayName",
+      "dateOfBirth",
+      "maritalStatus",
+      "theme",
+      "language",
+      "timezone",
+      "gender",
+      "details",
+      "notifications",
+      "privacy",
+    ];
+
     const updateData = {};
-    allowedFields.forEach(field => { if (req.body[field] !== undefined) updateData[field] = req.body[field]; });
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    });
 
+    // ---- 4. Handle profile avatar (Cloudinary) ----
     if (req.cloudinaryFile) {
       const oldProfile = await Profile.findOne({ userId });
 
-      if (oldProfile?.profileAvatar === req.cloudinaryFile.url) {
-        return res.status(409).json({ message: "This profile picture is already uploaded" });
-      }
+      if (oldProfile?.profileAvatarId !== req.cloudinaryFile.public_id) {
+        // Delete old avatar if exists
+        if (oldProfile?.profileAvatarId) {
+          await deleteFromCloudinary(oldProfile.profileAvatarId);
+        }
 
-      if (oldProfile?.profileAvatarId) {
-        await deleteFromCloudinary(oldProfile.profileAvatarId);
+        updateData.profileAvatar = req.cloudinaryFile.url;
+        updateData.profileAvatarId = req.cloudinaryFile.public_id;
       }
-
-      updateData.profileAvatar = req.cloudinaryFile.url;
-      updateData.profileAvatarId = req.cloudinaryFile.public_id;
     }
 
-    if (Object.keys(updateData).length === 0) return res.status(400).json({ message: "No fields provided" });
+    // ---- 5. Ensure at least one field or username is provided ----
+    const userName = req.body.userName;
+    if (Object.keys(updateData).length === 0 && !userName) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
 
-    const profile = await Profile.findOneAndUpdate({ userId }, { $set: updateData }, { new: true, upsert: true });
+    // ---- 6. Update profile in DB ----
+    const profile = await Profile.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { new: true, upsert: true }
+    );
 
+    // ---- 7. Handle username update ----
+    if (userName) {
+
+      // Update username in User schema
+      await User.findByIdAndUpdate(
+        userId,
+        { $set: { userName } },
+        { new: true }
+      ).lean();
+
+      // Also link profileSettings (optional, if you want)
+      await Profile.findByIdAndUpdate(
+        profile._id,
+        { $set: { profileSettings: profile._id } }
+      );
+    }
+
+    // ---- 8. Populate profile with user info ----
+    const populatedProfile = await Profile.findById(profile._id)
+      .populate("userId", "userName email role")
+      .lean();
+
+    // ---- 9. Send success response ----
     return res.status(200).json({
-      message: "Profile updated successfully",
-      profile,
+      message: "User profile updated successfully",
+      profile: populatedProfile,
     });
-  } catch (err) {
-    console.error("Error updating profile:", err);
-    return res.status(500).json({ message: "Server error" });
+  } catch (error) {
+    console.error("Error in userProfileDetailUpdate:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 

@@ -105,6 +105,8 @@ const {
   getAnaliticalCountforUser,
   getUserLikedFeedsforAdmin,
   getUserDetailWithIdForAdmin,
+  getUserAnalyticalData,
+  getUserLevelWithEarnings,
 } = require('../controllers/adminControllers/adminUserControllers');
 
 const {
@@ -269,8 +271,6 @@ router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 
 // /* --------------------- User Subscription --------------------- */
-// router.get('/user/left/tree/referals',getUserReferralTree);
-
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
@@ -345,10 +345,12 @@ router.get('/admin/getall/subscriptions', getAllPlans);
 
 /* --------------------- Admin User API --------------------- */
 router.get('/admin/getall/users', getAllUserDetails);
-router.get('/admin/get/user/profile/detail/:id',getUserDetailWithIdForAdmin)
+router.get('/admin/get/user/profile/detail/:id',getUserDetailWithIdForAdmin);
 router.get("/admin/users/status", getUsersStatus);
 router.get("/admin/user/detail/by-date", getUsersByDate);
-router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountforUser)
+router.get ('/admin/user/action/intersection/count/:userId',getAnaliticalCountforUser);
+router.get('/admin/get/user/analytical/data/:userId',getUserAnalyticalData);
+router.get("/admin/user/tree/level/:userId",getUserLevelWithEarnings);
 // router.get('/admin/user/followers/count')
 // router.get('/admin/user/followers/detail')
 // router.get('/admin/user/interest/categories')
@@ -395,8 +397,8 @@ router.get('/all/catagories/:id', getCategoryWithId);
 
 /* --------------------- Account API --------------------- */
 router.post('/account/add', auth, addAccount);
-router.post('/account/switch/creator', auth,switchToCreator);
-router.post('/account/switch/user', auth, switchToUserAccount);
-router.post('/account/status', auth, checkAccountStatus);
+router.post('/account/switch/creator',auth,switchToCreator);
+router.post('/account/switch/user',auth, switchToUserAccount);
+router.post('/account/status',auth, checkAccountStatus);
 
 module.exports = router;

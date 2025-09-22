@@ -186,11 +186,13 @@ exports.checkUsernameAvailability = async (req, res) => {
       return res.status(400).json({ message: "Username is required" });
     }
 
-    // Normalize (optional: lowercase for unique handling)
+    // Normalize: lowercase and trim
     const formattedUsername = username.trim().toLowerCase();
 
-    // Check if username exists
-    const userExists = await Users.findOne({ username: formattedUsername }).lean();
+    // Case-insensitive search in DB
+    const userExists = await Users.findOne({
+      userName: { $regex: new RegExp(`^${formattedUsername}$`, "i") }
+    }).lean();
 
     if (userExists) {
       return res.status(200).json({

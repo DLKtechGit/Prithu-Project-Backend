@@ -270,8 +270,14 @@ try {
 exports.newUserVerifyOtp = async (req, res) => {
   const { otp ,email} = req.body;
 
+  const existingUser = await Users.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
   if (!otp||!email) {
     return res.status(400).json({ error: 'Email and OTP are required' });
+
   }
    const record = otpStore.get(email);
 
@@ -378,3 +384,8 @@ exports.userLogOut = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
+
+
