@@ -8,17 +8,16 @@ const DirectFinisherSchema = new mongoose.Schema({
   level: { type: Number, default: 1 },
   tier: { type: Number, default: 1 },
   carryOver: { type: Number, default: 0 },
+  partialAmount: { type: Number, default: 0 }, // store partial credited for this child->parent
   completedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
 
-// Indexes
 DirectFinisherSchema.index({ parentId: 1, childId: 1 }, { unique: true });
 DirectFinisherSchema.index({ parentId: 1, side: 1, status: 1 });
 DirectFinisherSchema.index({ parentId: 1, level: 1, tier: 1 });
 
-// Auto-update updatedAt
 DirectFinisherSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();

@@ -308,7 +308,53 @@ exports.getFeedsByAccountId = async (req, res) => {
 
 
 
+exports.getUserHidePost = async (req, res) => {
+  try {
+    const userId = req.Id || req.body.userId;
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
 
+    // 1️⃣ Find user
+    const user = await User.findById(userId, "hiddenPostIds").lean();
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2️⃣ If no hidden posts
+    if (!user.hiddenPostIds || user.hiddenPostIds.length === 0) {
+      return res.status(200).json({
+        message: "No hidden posts found",
+        data: [],
+      });
+    }
+
+    // 3️⃣ Fetch hidden posts
+    const hiddenPosts = await Feed.find(
+      { _id: { $in: user.hiddenPostIds } },
+      {
+        _id: 1,
+        title: 1,
+        content: 1,
+        contentUrl: 1,
+        createdAt: 1,
+        createdByAccount: 1,
+      }
+    ).lean();
+
+    res.status(200).json({
+      message: "Hidden posts fetched successfully",
+      count: hiddenPosts.length,
+      data: hiddenPosts,
+    });
+  } catch (err) {
+    console.error("Error fetching hidden posts:", err);
+    res.status(500).json({
+      message: "Error fetching hidden posts",
+      error: err.message,
+    });
+  }
+};
 
 
 
@@ -317,7 +363,9 @@ exports.getFeedsByAccountId = async (req, res) => {
 
 exports.getUserInfoAssociatedFeed = async (req, res) => {
   try {
-    let feedId = req.params.feedId || req.query.feedId;
+    let feedId = req.params.feedId || req.body.feedId;
+    const userId = req.Id || req.body.userId; 
+
     if (!feedId) {
       return res.status(400).json({ message: "feedId is required" });
     }
@@ -396,30 +444,35 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
           },
         },
 
-        // 5️⃣ Lookup Followers count
+        // 5️⃣ Lookup Followers (count + ids)
         {
           $lookup: {
             from: "CreatorFollowers",
             let: { accId: "$createdByAccount" },
             pipeline: [
               {
-                $match: { $expr: { $eq: ["$accountId", "$$accId"] } },
+                $match: { $expr: { $eq: ["$creatorId", "$$accId"] } }
               },
               {
                 $project: {
-                  followersCount: { $size: { $ifNull: ["$followerIds", []] } },
-                },
-              },
+                  _id: 0,
+                  followerIds: 1,
+                  followersCount: { $size: { $ifNull: ["$followerIds", []] } }
+                }
+              }
             ],
-            as: "followersData",
-          },
+            as: "followersData"
+          }
         },
         {
           $addFields: {
             followersCount: {
-              $ifNull: [{ $arrayElemAt: ["$followersData.followersCount", 0] }, 0],
+              $ifNull: [{ $arrayElemAt: ["$followersData.followersCount", 0] }, 0]
             },
-          },
+            followerIds: {
+              $ifNull: [{ $arrayElemAt: ["$followersData.followerIds", 0] }, []]
+            }
+          }
         },
 
         // 6️⃣ Final response fields
@@ -429,6 +482,7 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
             accountId: "$createdByAccount",
             totalPosts: 1,
             followersCount: 1,
+            followerIds: 1,
             "profile.displayName": 1,
             "profile.bio": 1,
             "profile.profileAvatar": 1,
@@ -444,11 +498,19 @@ exports.getUserInfoAssociatedFeed = async (req, res) => {
 
     let data = feedWithCreator[0];
 
-    // ✅ Add host to profileAvatar if exists
+    // ✅ Add host to profileAvatar if needed
     if (data.profile && data.profile.profileAvatar) {
-      const HOST = process.env.HOST || "https://example.com";
-      data.profile.profileAvatar = `${HOST}/${data.profile.profileAvatar}`;
+      data.profile.profileAvatar = data.profile.profileAvatar; // adjust with full URL if required
     }
+
+    // ✅ Add isFollowing (check if current userId is in followerIds)
+    let isFollowing = false;
+    if (userId && data.followerIds) {
+      isFollowing = data.followerIds.some(
+        (id) => id.toString() === userId.toString()
+      );
+    }
+    data.isFollowing = isFollowing;
 
     res.status(200).json({
       message: "Feed with creator details fetched successfully",

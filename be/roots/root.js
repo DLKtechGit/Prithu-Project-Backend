@@ -52,6 +52,7 @@ const {
   getAllFeedsByUserId,
   getFeedsByAccountId,
   getUserInfoAssociatedFeed,
+  getUserHidePost,
 } = require('../controllers/feedControllers/feedsController');
 
 const {
@@ -210,6 +211,11 @@ const{
   getDashUserSubscriptionRatio,
 }=require('../controllers/adminControllers/dashboardController');
 
+const{
+  getUserTreeWithProfiles,
+  getUserEarnings,
+}=require("../controllers/userControllers/userReferralControllers/referralControllers")
+
 
 /* --------------------- User Authentication --------------------- */
 router.post('/auth/user/register', createNewUser);
@@ -222,7 +228,9 @@ router.post('/auth/user/logout', userLogOut);
 
 /* --------------------- User Referral API Actions --------------------- */
 router.post('/user/later/referral',applyReferralCode);
-router.get('/user/referal/code',getUserReferalCode);
+router.get('/user/referal/code',auth,getUserReferalCode);
+router.get ('/user/earning/card/data',getUserEarnings);
+router.get('/user/both/tree/referals',getUserTreeWithProfiles);
 
 /* --------------------- Fresh Users API --------------------- */
 router.post('/user/app/language',auth, setAppLanguage );
@@ -251,7 +259,7 @@ router.get('/user/download/feeds', auth, getUserDownloadedFeeds);
 router.get('/user/liked/feeds',auth, getUserLikedFeeds);
 router.post('/get/comments/for/feed',auth,getCommentsByFeed);
 router.post('/get/comments/relpy/for/feed',auth,getRepliesByComment);
-router.post('/user/hide/feed',userHideFeed);
+router.post('/user/hide/feed',auth,userHideFeed);
 
 /* --------------------- User Subscription --------------------- */
 router.post('/user/plan/subscription', subscribePlan);
@@ -261,7 +269,7 @@ router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 // /* --------------------- User Subscription --------------------- */
 // router.get('/user/left/tree/referals',getUserReferralTree);
-router.get('/user/right/tree/referals',auth,getUserReferralTree);
+
 // router.get('/user/user/subscriptions', auth, getUserSubscriptionPlanWithId);
 
 /*---------------------- User Feed API -------------------------*/
@@ -275,34 +283,21 @@ router.post('/user/image/view/count',auth,userImageViewCount);
  router.get('/user/following/data',auth,getUserFollowersData);
 
 /* --------------------- User Profile API --------------------- */
-router.post(
-  "/user/profile/detail/update",
-  auth,
-  upload.single("file"),
-  (req, res, next) => { req.baseUrl = "/profile"; next(); },
+router.post("/user/profile/detail/update",auth,upload.single("file"),(req, res, next) => { req.baseUrl = "/profile"; next(); },
   uploadToCloudinary,
   userProfileDetailUpdate
 );
-
-
-//   uploadToCloudinaryOptimized,
-//   userProfileDetailUpdate
-// );router.get('/get/profile/detail',auth,getUserProfileDetail);
+router.get('/get/profile/detail',auth,getUserProfileDetail);
 
 /* --------------------- Creator Feed API --------------------- */
-router.post(
-  "/creator/feed/upload",
-  auth,
-  upload.single("file"),
-   (req, res, next) => { req.baseUrl = "/feed"; next(); },
+router.post("/creator/feed/upload",auth,upload.single("file"),(req, res, next) => { req.baseUrl = "/feed"; next(); },
    processFeedFile,
   uploadToCloudinary,
   creatorFeedUpload
 );
 
-// );router.post("/creator/feed/schedule", auth,upload.single('file'), uploadToCloudinary, creatorFeedScheduleUpload);
 router.delete('/creator/delete/feeds', auth, creatorFeedDelete);
-router.get('/creator/getall/feeds',getCreatorFeeds);
+router.get('/creator/getall/feeds',auth,getCreatorFeeds);
 router.post('/creator/get/post',auth,getCreatorPost);
 router.get('/creator/get/feed/category',getAllCategories);
 router.get('/get/all/feed/for/Creator',auth,getFeedsByAccountId);
@@ -383,7 +378,8 @@ router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 
 
 /* --------------------- Feeds API --------------------- */
- router.get('/get/creator/detail/feed/:feedId',getUserInfoAssociatedFeed)
+ router.post('/get/creator/detail/feed/:feedId',auth,getUserInfoAssociatedFeed);
+ router.get('/get/user/hide/post',auth,getUserHidePost);
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 
 /* --------------------- Feed For Comments API --------------------- */

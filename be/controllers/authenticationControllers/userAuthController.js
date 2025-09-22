@@ -33,20 +33,21 @@ const transporter = nodemailer.createTransport({
  * - atomically increments referrer's usage if referralCode provided (max 2)
  * - places referral via placeReferral (idempotent)
  */
+
+
 exports.createNewUser = async (req, res) => {
   try {
     const { username, email, password, referralCode } = req.body;
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: "All fields required" });
-    }
+    if (!username || !email || !password) return res.status(400).json({ message: "All fields required" });
 
     const passwordHash = await bcrypt.hash(password, 10);
-// 🔹 generate referral code
-const base = username.replace(/\s+/g, "").toUpperCase().slice(0, 3);
-let referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
 
+    // referral code base = first 3 letters uppercase (pad if short)
+    const baseRaw = username.replace(/\s+/g, "");
+    const base = (baseRaw.length >= 3 ? baseRaw.slice(0,3) : (baseRaw + "XXX").slice(0,3)).toUpperCase();
+    let referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
 
-    // ensure unique (retry few times)
+    // ensure unique
     for (let i = 0; i < 5; i++) {
       const exists = await User.findOne({ referralCode: referralCodeGenerated }).lean();
       if (!exists) break;
@@ -57,70 +58,51 @@ let referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
     let referringUser = null;
 
     if (referralCode) {
-      // 🔹 validate referral code (must exist, must be valid, must have slots)
-    referringUser = await User.findOne({
-  referralCode,
-  referralCodeIsValid: true,
-  $expr: { $lt: ["$referralCodeUsageCount", "$referralCodeUsageLimit"] }
-});
+      // require that referrer has currently-valid code (subscribed) and not yet reached 2 subscribed directs
+      referringUser = await User.findOne({
+        referralCode,
+        referralCodeIsValid: true
+      });
 
-console.log(referringUser)
       if (!referringUser) {
-        return res.status(400).json({ message: "Referral code invalid, expired, or limit reached" });
+        return res.status(400).json({ message: "Referral code invalid or not active" });
       }
 
-      // 🔹 atomically increment usage
-      const updatedRef = await User.findOneAndUpdate(
-        { _id: referringUser._id, referralCodeUsageCount: { $lt: 2 }, referralCodeIsValid: true },
-        { $inc: { referralCodeUsageCount: 1 } },
-        { new: true }
-      );
-
-      if (!updatedRef) {
-        return res.status(400).json({ message: "Referral code no longer available" });
-      }
-
-      // 🔹 invalidate code if usage cap reached
-      if (updatedRef.referralCodeUsageCount >= 2) {
-        updatedRef.referralCodeIsValid = false;
-        await updatedRef.save();
-      }
-
+      // We do NOT increment directSubscribedCount here (that's counted on actual subscription)
+      // But we can atomically increase referralCodeUsageCount if you want to count uses at apply-time:
+      await User.findByIdAndUpdate(referringUser._id, { $inc: { referralCount: 1, referralCodeUsageCount: 1 } });
       referredByUserId = referringUser._id;
     }
 
-    // 🔹 create new user
     const user = new User({
       userName: username,
       email,
       passwordHash,
       referralCode: referralCodeGenerated,
+      referralCodeIsValid: false, // user not subscribed yet
+      referralCodeUsageLimit: 2,
+      referralCodeUsageCount: 0,
       referredByUserId,
-      referredByCode: referralCode || null
+      referredByCode: referralCode || null,
+      subscription: { isActive: false }
     });
     await user.save();
 
-    
-
-    // 🔹 place referral (only if referrer’s code is valid)
-    if (referringUser && referringUser.referralCodeIsValid) {
+    // place referral relation (idempotent)
+    if (referringUser) {
       try {
         await placeReferral({ parentId: referringUser._id, childId: user._id });
+        // add to parent's directReferrals array (if not present)
+        await User.updateOne({ _id: referringUser._id }, { $addToSet: { directReferrals: user._id } });
       } catch (err) {
         console.warn("placeReferral warning:", err.message);
       }
     }
 
-    return res.status(201).json({
-      message: "User registered",
-      referralCode: referralCodeGenerated
-    });
-
+    return res.status(201).json({ message: "User registered", referralCode: referralCodeGenerated });
   } catch (err) {
-    console.error(err);
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Username or email already exists" });
-    }
+    console.error("createNewUser err:", err);
+    if (err.code === 11000) return res.status(400).json({ message: "username or email already exists" });
     return res.status(500).json({ message: "Server error" });
   }
 };

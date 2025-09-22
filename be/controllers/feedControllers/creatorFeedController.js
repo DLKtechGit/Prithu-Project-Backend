@@ -186,61 +186,70 @@ exports.creatorFeedDelete = async (req, res) => {
 
 exports.getCreatorPost = async (req, res) => {
   try {
+    console.log(req)
     const accountId = req.accountId || req.body.accountId;
+    console.log(accountId)
+    let creatorId
     if (!accountId) {
       return res.status(400).json({ message: "Account ID is required" });
     }
-
+ 
     // ✅ Fetch account
     const account = await Account.findById(accountId).lean();
     if (!account) {
-      return res.status(404).json({ message: "Account not found" });
+      return res.status(400).json({ message: "Account not found" });
     }
-
-    // ✅ Ensure active creator account only when coming from token
-    let creatorId = accountId;
-    if (req.accountId) {
-      const activeAccount = await getActiveCreatorAccount(account.userId);
-      if (!activeAccount) {
-        return res.status(403).json({
-          message: "Only active Creator account can fetch feeds",
-        });
-      }
-      creatorId = activeAccount._id;
+ 
+    if(req.accountId){
+    // ✅ Ensure active creator account
+    const activeAccount = await getActiveCreatorAccount(account.userId);
+    if (!activeAccount) {
+      return res.status(403).json({
+        message: "Only active Creator account can fetch feeds",
+      });
     }
-
+    creatorId = activeAccount._id
+  }
+    creatorId =  req.body.accountId
+ 
     // ✅ Run queries in parallel (feeds + count)
     const [feeds, feedCount] = await Promise.all([
-      Feed.find({ createdByAccount: creatorId }, { contentUrl: 1, createdAt: 1 })
+      Feed.find(
+        { createdByAccount: creatorId },
+        { contentUrl: 1, createdAt: 1 }
+      )
         .sort({ createdAt: -1 })
         .lean(),
-      Feed.countDocuments({ createdByAccount: creatorId }),
+      Feed.countDocuments({ createdByAccount: creatorId })
     ]);
-
-    if (!feeds.length) {
+ 
+    if (!feeds || feeds.length === 0) {
       return res.status(404).json({
         message: "No feeds found for this creator",
         feedCount: 0,
         feeds: [],
       });
     }
-
+ 
+   
     const feedsFormatted = feeds.map(feed => ({
       feedId: feed._id,
-      contentUrl: feed.contentUrl,
+      contentUrl:feed.contentUrl,
       timeAgo: feedTimeCalculator(feed.createdAt),
     }));
-
+ 
     return res.status(200).json({
       message: "Creator feeds retrieved successfully",
-      feedCount,
+      feedCount, // ✅ optimized with countDocuments
       feeds: feedsFormatted,
     });
+ 
   } catch (error) {
-    console.error("❌ Error fetching creator feeds:", error);
+    console.error("Error fetching creator feeds:", error);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+ 
 
 
 

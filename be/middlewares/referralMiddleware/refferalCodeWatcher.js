@@ -1,63 +1,63 @@
 const User = require('../../models/userModels/userModel');
 const ReferralEdge = require('../../models/userModels/userRefferalModels/refferalEdgeModle');
 const DirectFinisher = require('../../models/userModels/userRefferalModels/directFinishersModel');
-const { onUserSubscriptionComplete } = require('../referralMiddleware/handleSubscriptionCheck');
+const { onSubscriptionActivated } = require('../referralMiddleware/referralCount');
 
 exports.startWatcher = () => {
-  // 🔹 Watch for updates to User documents
-  const changeStream = User.watch([
-    {
-      $match: {
-        operationType: "update",
-        "updateDescription.updatedFields.subscription.isActive": { $exists: true }
+  const changeStream = User.watch(
+    [
+      {
+        $match: {
+          operationType: "update",
+          $or: [
+            { "updateDescription.updatedFields.subscription.isActive": { $exists: true } },
+            { "updateDescription.updatedFields.subscription": { $exists: true } }
+          ]
+        }
       }
-    }
-  ], { fullDocument: "updateLookup" });
+    ],
+    { fullDocument: "updateLookup" }
+  );
 
-  // 🔹 Listen for subscription status changes
   changeStream.on("change", async (change) => {
     try {
       const userId = change.documentKey._id;
       const newSubStatus = change.updateDescription.updatedFields["subscription.isActive"];
+      console.log(`Watcher: subscription change for ${userId} => ${newSubStatus}`);
 
-      console.log(`Watcher detected subscription change for user ${userId}: ${newSubStatus}`);
-
-      // 1️⃣ Find referral edge where this user is a child
       const edge = await ReferralEdge.findOne({ childId: userId }).sort({ createdAt: 1 });
-      if (!edge) {
-        console.log("No referral edge found for user", userId);
-        return;
+
+      if (edge) {
+        await DirectFinisher.updateOne(
+          { parentId: edge.parentId, childId: userId },
+          {
+            $set: {
+              status: newSubStatus ? "finished" : "incomplete",
+              side: edge.side,
+              updatedAt: new Date()
+            },
+            $setOnInsert: {
+              createdAt: new Date(),
+              parentId: edge.parentId,
+              childId: userId
+            }
+          },
+          { upsert: true }
+        );
       }
 
-      // 2️⃣ Update DirectFinisher entry
-      await DirectFinisher.updateOne(
-        { parentId: edge.parentId, childId: userId },
-        {
-          $set: {
-            status: newSubStatus ? "finished" : "incomplete",
-            side: edge.side,
-            updatedAt: new Date()
-          },
-          $setOnInsert: { createdAt: new Date() }
-        },
-        { upsert: true }
-      );
-
-      console.log(`DirectFinisher updated for parent ${edge.parentId} and child ${userId}`);
-
-      // 3️⃣ If subscription activated → trigger earnings check
       if (newSubStatus) {
-        await onUserSubscriptionComplete(userId);
-        console.log(`Earnings process triggered for user ${userId}`);
+        await onSubscriptionActivated(userId);
       }
     } catch (err) {
-      console.error("Watcher error in handling subscription change:", err);
+      console.error("Watcher error:", err);
     }
   });
 
   changeStream.on("error", (err) => {
-    console.error("Watcher error:", err);
+    console.error("Watcher stream error:", err);
+    setTimeout(exports.startWatcher, 5000); // auto restart
   });
 
-  console.log("Referral watcher started ✅");
+  console.log("Referral watcher started");
 };

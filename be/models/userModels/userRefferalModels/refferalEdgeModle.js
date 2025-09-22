@@ -6,7 +6,6 @@ const ReferralEdgeSchema = new mongoose.Schema({
   side: { type: String, enum: ["left", "right"], required: true },
   level: { type: Number, required: true, default: 1 },
   tier: { type: Number, required: true, default: 1 },
-  // finished when child + parent conditions met (parent active at time child activated)
   status: { type: String, enum: ["incomplete", "finished"], default: "incomplete" },
   completedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
