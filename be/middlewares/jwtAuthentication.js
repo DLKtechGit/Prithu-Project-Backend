@@ -1,28 +1,28 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+
+
 
 exports.auth = (req, res, next) => {
   try {
+
     const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer "))
+      return res.status(401).json({ message: "Token missing or invalid" });
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Token missing or invalid' });
-    }
+    const token = authHeader.split(" ")[1].trim();
 
-    const token = authHeader.split(' ')[1];
+    // Verify token using the same secret
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_access_token_secret_here");
 
-    // Verify and decode token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
-
-    // Attach info to request object
-     req.Id = decoded.userId || null; // Use lowercase 'id' for consistency
+    // Attach decoded info to request
+    req.Id = decoded.userId;
     req.role = decoded.role;
-    req.accountId = decoded.accountId || null;
-    req.userName = decoded.userName || null; 
+    req.userName = decoded.userName;
 
     next();
   } catch (error) {
-    console.error('JWT verification failed:', error);
-    res.status(401).json({ message: 'Unauthorized' });
+    console.error("JWT verification failed:", error);
+    res.status(401).json({ message: "Unauthorized" });
   }
 };

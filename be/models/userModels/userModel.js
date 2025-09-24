@@ -11,35 +11,17 @@ const UserSchema = new mongoose.Schema(
     accounts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Account" }],
     profileSettings: { type: mongoose.Schema.Types.ObjectId, ref: "ProfileSettings" },
 
-    referralCode: { type: String, unique: true, index: true },
-    referredByCode: { type: String, default: null },
-    referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  referralCode: { type: String, unique: true },
+  referralCodeIsValid: { type: Boolean, default: false },
+  referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  referralCodeUsageCount: { type: Number, default: 0 },
+  referralCodeUsageLimit: { type: Number, default: 2 },
 
-    // track direct children (who user referred)
-    directReferrals: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
-    // side under the immediate parent (left/right)
-    sideUnderParent: { type: String, enum: ["left", "right", null], default: null },
-
-    // earnings & progression
-    currentLevel: { type: Number, default: 1 },
-    currentTier: { type: Number, default: 1 },
-    lastPromotedAt: { type: Date },
-    isTierComplete: { type: Boolean, default: false },
     totalEarnings: { type: Number, default: 0 },
-    withdrawableEarnings: { type: Number, default: 0 },
+  withdrawnEarnings: { type: Number, default: 0 },
+  balanceEarnings: { type: Number, default: 0 },
 
-    // referral code validity: becomes true only after subscription activation
-    referralCodeIsValid: { type: Boolean, default: false },
-
-    // count of direct referrals who actually subscribed (used to deactivate code once reaches 2)
-    directSubscribedCount: { type: Number, default: 0 },
-
-    // legacy usage fields (optional)
-    referralCodeUsageCount: { type: Number, default: 0 },
-    referralCodeUsageLimit: { type: Number, default: 2 },
-
-    referralCount: { type: Number, default: 0 },
 
     // subscription object
     subscription: {
@@ -50,9 +32,6 @@ const UserSchema = new mongoose.Schema(
       updatedAt: { type: Date, default: Date.now },
     },
 
-    // ✅ NEW: hold users until the opposite side is balanced
-    holdLeft: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    holdRight: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     fcmTokens: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },

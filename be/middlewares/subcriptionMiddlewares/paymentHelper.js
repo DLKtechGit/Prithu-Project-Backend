@@ -1,61 +1,115 @@
+// services/subscriptionService.js
 const User = require("../../models/userModels/userModel");
 const UserSubscription = require("../../models/subcriptionModels/userSubscreptionModel");
 const SubscriptionPlan = require("../../models/subcriptionModels/subscriptionPlanModel");
-const { assignPlanToUser } = require("../../middlewares/subcriptionMiddlewares/assignPlanToUserHelper");
-const { onSubscriptionActivated } = require("../referralMiddleware/referralCount");
+const { processReferral } = require("../../middlewares/referralMiddleware/referralCount");
+const mongoose = require("mongoose");
 
-exports.processPayment = async (userId, subscriptionId, paymentResult) => {
-  // find or create subscription record (your existing logic)
-  let subscription = null;
-  if (subscriptionId) subscription = await UserSubscription.findById(subscriptionId);
-  if (!subscription) subscription = await assignPlanToUser(userId, subscriptionId);
-  if (!subscription) throw new Error("Subscription could not be created or found");
+exports.activateSubscription = async (userId, planId, paymentResult) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (paymentResult === "success") {
-    subscription.isActive = true;
-    subscription.paymentStatus = "success";
-
-    const today = new Date();
-    if (!subscription.startDate) subscription.startDate = today;
-
-    const plan = await SubscriptionPlan.findById(subscription.planId);
-    const durationMs = (plan && plan.durationDays) ? plan.durationDays * 24 * 60 * 60 * 1000 : (30 * 24 * 60 * 60 * 1000);
-
-    if (!subscription.endDate || today >= subscription.endDate) {
-      subscription.endDate = new Date(today.getTime() + durationMs);
-    } else {
-      subscription.endDate = new Date(subscription.endDate.getTime() + durationMs);
+  try {
+    if (!userId || !planId) {
+      throw new Error("userId and planId are required");
     }
 
-    await subscription.save();
-
-    // 1) update user's subscription and make referralCode valid
-    await User.findByIdAndUpdate(
+    // 🔎 Check if already subscribed
+    const existingSubscription = await UserSubscription.findOne({
       userId,
-      {
-        $set: {
-          "subscription.isActive": true,
-          "subscription.startDate": subscription.startDate,
-          "subscription.endDate": subscription.endDate,
-          "subscription.updatedAt": new Date(),
-          referralCodeIsValid: true // code becomes active now
+      planId,
+      isActive: true,
+    }).session(session);
+
+    if (existingSubscription) {
+      throw new Error("You have already subscribed to this plan");
+    }
+
+    // 🔎 Fetch user & plan
+    const user = await User.findById(userId).session(session);
+    if (!user) throw new Error("User not found");
+
+    const plan = await SubscriptionPlan.findById(planId).session(session);
+    if (!plan) throw new Error("Subscription plan not found");
+
+    // 🔎 Find or create subscription
+    let subscription = await UserSubscription.findOne({ userId }).session(session);
+    if (!subscription) {
+      subscription = new UserSubscription({
+        userId,
+        planId,
+        isActive: false,
+        paymentStatus: "pending",
+      });
+    }
+
+    // 📅 Duration
+    const today = new Date();
+    const durationMs = (plan.durationDays || 30) * 24 * 60 * 60 * 1000;
+
+    // ✅ Success
+    if (paymentResult === "success") {
+      subscription.isActive = true;
+      subscription.paymentStatus = "success";
+      subscription.startDate = subscription.startDate || today;
+      subscription.endDate =
+        subscription.endDate && subscription.endDate > today
+          ? new Date(subscription.endDate.getTime() + durationMs)
+          : new Date(today.getTime() + durationMs);
+
+      await subscription.save({ session });
+
+      user.subscription = {
+        isActive: true,
+        planType: plan.name,
+        startDate: subscription.startDate,
+        endDate: subscription.endDate,
+      };
+      user.referralCodeIsValid = true;
+      await user.save({ session });
+
+      await processReferral(userId);
+
+      // update parent referral
+      if (user.referredByUserId) {
+        const parent = await User.findById(user.referredByUserId).session(session);
+        if (parent) {
+          parent.referralCodeUsageCount += 1;
+          if (parent.referralCodeUsageCount >= parent.referralCodeUsageLimit) {
+            parent.referralCodeIsValid = false;
+          }
+          await parent.save({ session });
         }
       }
-    );
 
-    // 2) Trigger referral/earning logic for this subscribing user
-    await onSubscriptionActivated(userId);
+      await session.commitTransaction();
+      return subscription;
+    }
 
-    return subscription;
-  } else if (paymentResult === "failed") {
-    subscription.isActive = false;
-    subscription.paymentStatus = "failed";
-    await subscription.save();
-    await User.findByIdAndUpdate(userId, { $set: { "subscription.isActive": false, referralCodeIsValid: false } });
-    return subscription;
-  } else {
+    // ❌ Failed
+    if (paymentResult === "failed") {
+      subscription.isActive = false;
+      subscription.paymentStatus = "failed";
+      await subscription.save({ session });
+
+      user.subscription.isActive = false;
+      user.referralCodeIsValid = false;
+      await user.save({ session });
+
+      await session.commitTransaction();
+      return subscription;
+    }
+
+    // ⏳ Pending
     subscription.paymentStatus = "pending";
-    await subscription.save();
+    await subscription.save({ session });
+    await session.commitTransaction();
+
     return subscription;
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
   }
 };

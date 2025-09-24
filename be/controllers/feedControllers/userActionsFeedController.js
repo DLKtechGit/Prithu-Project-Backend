@@ -9,6 +9,8 @@ const User=require('../../models/userModels/userModel');
 const mongoose = require("mongoose");
 const ProfileSettings=require('../../models/profileSettingModel');
 const { feedTimeCalculator } = require("../../middlewares/feedTimeCalculator");
+const UserCategory=require('../../models/userModels/userCategotyModel.js');
+const Category=require('../../models/categorySchema.js');
 
 
 
@@ -591,6 +593,49 @@ exports.userHideFeed = async (req, res) => {
   }
 };
 
+
+exports.getUserCategory = async (req, res) => {
+  try {
+    const userId= req.Id || req.body.userId  ;
+    
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID not found in token" });
+    }
+
+    // Get user category document
+    const userCategory = await UserCategory.findOne({ userId });
+    if (!userCategory) {
+      return res.status(404).json({ message: "User categories not found" });
+    }
+
+    // Extract interested and non-interested IDs
+    const interestedIds = userCategory.interestedCategories.map(c => c.categoryId);
+    const nonInterestedIds = userCategory.nonInterestedCategories.map(c => c.categoryId);
+
+    // Fetch category names
+    const interestedCategories = await Category.find(
+      { _id: { $in: interestedIds } },
+      { _id: 1, name: 1 }
+    );
+
+    const nonInterestedCategories = await Category.find(
+      { _id: { $in: nonInterestedIds } },
+      { _id: 1, name: 1 }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        interestedCategories,
+        nonInterestedCategories,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getUserCategory:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 
 

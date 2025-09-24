@@ -9,3 +9,6 @@ const WithdrawalSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Withdrawal", WithdrawalSchema, "Withdrawals");
+
+
+

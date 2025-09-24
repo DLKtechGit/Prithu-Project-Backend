@@ -212,6 +212,39 @@ exports.checkUsernameAvailability = async (req, res) => {
 };
 
 
+exports.checkEmailAvailability = async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || email.trim() === "") {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Normalize: lowercase and trim
+    const formattedEmail = email.trim().toLowerCase();
+
+    // Case-insensitive search in DB
+    const emailExists = await Users.findOne({
+      email: { $regex: new RegExp(`^${formattedEmail}$`, "i") }
+    }).lean();
+
+    if (emailExists) {
+      return res.status(200).json({
+        available: false,
+        message: "Email not available",
+      });
+    }
+
+    return res.status(200).json({
+      available: true,
+      message: "Email available",
+    });
+  } catch (error) {
+    console.error("Error checking email availability:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 
 exports.getUserReferalCode = async (req, res) => {

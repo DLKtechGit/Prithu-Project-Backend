@@ -6,11 +6,13 @@ const bcrypt = require('bcrypt');
 const crypto = require("crypto"); 
 const { generateReferralCode } = require('../../middlewares/generateReferralCode');
 const otpStore=new Map();
-const {placeReferral}=require('../../middlewares/referralMiddleware/referralCount');
+const {processReferral}=require('../../middlewares/referralMiddleware/referralCount');
 const {startUpProcessCheck}=require('../../middlewares/services/User Services/userStartUpProcessHelper');
 const Device = require("../../models/userModels/userSession-Device/deviceModel");
 const Session = require("../../models/userModels/userSession-Device/sessionModel");
+const UserReferral=require('../../models/userModels/userRefferalModels/userReferralModel');
 const { v4: uuidv4 } = require("uuid");
+const mongoose =require("mongoose")
 
 // const sessionService = makeSessionService(User,StoreUserDevice);
 
@@ -34,77 +36,40 @@ const transporter = nodemailer.createTransport({
  * - places referral via placeReferral (idempotent)
  */
 
-
-exports.createNewUser = async (req, res) => {
+exports.createNewUser = async (req,res) => {
   try {
     const { username, email, password, referralCode } = req.body;
     if (!username || !email || !password) return res.status(400).json({ message: "All fields required" });
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const base = (username.replace(/\s+/g,"").slice(0,3).toUpperCase() || "XXX");
+    let generatedCode = `${base}${crypto.randomBytes(2).toString("hex")}`;
 
-    // referral code base = first 3 letters uppercase (pad if short)
-    const baseRaw = username.replace(/\s+/g, "");
-    const base = (baseRaw.length >= 3 ? baseRaw.slice(0,3) : (baseRaw + "XXX").slice(0,3)).toUpperCase();
-    let referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
-
-    // ensure unique
-    for (let i = 0; i < 5; i++) {
-      const exists = await User.findOne({ referralCode: referralCodeGenerated }).lean();
-      if (!exists) break;
-      referralCodeGenerated = `${base}${crypto.randomBytes(3).toString("hex")}`;
-    }
-
-    let referredByUserId = null;
-    let referringUser = null;
+    const user = new User({ userName: username, email, passwordHash, referralCode: generatedCode, referralCodeIsValid: false });
 
     if (referralCode) {
-      // require that referrer has currently-valid code (subscribed) and not yet reached 2 subscribed directs
-      referringUser = await User.findOne({
-        referralCode,
-        referralCodeIsValid: true
-      });
+      const parent = await User.findOne({ referralCode, referralCodeIsValid: true });
+      if (!parent) return res.status(400).json({ message: "Referral code invalid or used up" });
 
-      if (!referringUser) {
-        return res.status(400).json({ message: "Referral code invalid or not active" });
-      }
+      user.referredByUserId = parent._id;
+      await user.save();
 
-      // We do NOT increment directSubscribedCount here (that's counted on actual subscription)
-      // But we can atomically increase referralCodeUsageCount if you want to count uses at apply-time:
-      await User.findByIdAndUpdate(referringUser._id, { $inc: { referralCount: 1, referralCodeUsageCount: 1 } });
-      referredByUserId = referringUser._id;
+      await UserReferral.updateOne({ parentId: parent._id }, { $addToSet: { childIds: user._id } }, { upsert: true });
+    } else {
+      await user.save();
     }
 
-    const user = new User({
-      userName: username,
-      email,
-      passwordHash,
-      referralCode: referralCodeGenerated,
-      referralCodeIsValid: false, // user not subscribed yet
-      referralCodeUsageLimit: 2,
-      referralCodeUsageCount: 0,
-      referredByUserId,
-      referredByCode: referralCode || null,
-      subscription: { isActive: false }
-    });
-    await user.save();
-
-    // place referral relation (idempotent)
-    if (referringUser) {
-      try {
-        await placeReferral({ parentId: referringUser._id, childId: user._id });
-        // add to parent's directReferrals array (if not present)
-        await User.updateOne({ _id: referringUser._id }, { $addToSet: { directReferrals: user._id } });
-      } catch (err) {
-        console.warn("placeReferral warning:", err.message);
-      }
-    }
-
-    return res.status(201).json({ message: "User registered", referralCode: referralCodeGenerated });
-  } catch (err) {
-    console.error("createNewUser err:", err);
-    if (err.code === 11000) return res.status(400).json({ message: "username or email already exists" });
-    return res.status(500).json({ message: "Server error" });
+    res.status(201).json({ message: "User registered", referralCode: generatedCode });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
+};
+
+// On subscription payment success
+exports.activateSubscription = async (userId) => {
+  await User.findByIdAndUpdate(userId, { $set: { "subscription.isActive": true, referralCodeIsValid: true } });
+  await processReferral(userId);
 };
 
 

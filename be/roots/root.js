@@ -62,6 +62,7 @@ const {
   existAdminVerifyOtp,
   newAdminVerifyOtp,
   adminPasswordReset,
+  verifyToken,
 } = require('../controllers/authenticationControllers/adminAuthController');
 
 const {
@@ -72,6 +73,7 @@ const {
   setFeedLanguage,
   checkUsernameAvailability,
   getUserReferalCode,
+  checkEmailAvailability,
 } = require('../controllers/userControllers/userDetailController');
 
 const{
@@ -121,6 +123,7 @@ const {
   commentLike,
   getUserLikedFeeds,
   userHideFeed,
+  getUserCategory,
 } = require('../controllers/feedControllers/userActionsFeedController');
 
 const{
@@ -241,7 +244,8 @@ router.post('/user/feed/language',auth, setFeedLanguage );
 router.get('/user/get/feed/language', auth, getFeedLanguage );
 router.get('/user/get/content/catagories',auth,getUserContentCategories);
 router.post('/user/select/category',auth, userSelectCategory);
-router.post("/check/username/availability",checkUsernameAvailability);
+router.get("/check/username/availability",checkUsernameAvailability);
+router.get("/check/email/availability",checkEmailAvailability);
 
 
 /* --------------------- User Feed Actions --------------------- */
@@ -263,6 +267,7 @@ router.get('/user/liked/feeds',auth, getUserLikedFeeds);
 router.post('/get/comments/for/feed',auth,getCommentsByFeed);
 router.post('/get/comments/relpy/for/feed',auth,getRepliesByComment);
 router.post('/user/hide/feed',auth,userHideFeed);
+router.get("/user/notintrested/category",auth,getUserCategory);
 
 /* --------------------- User Subscription --------------------- */
 router.post('/user/plan/subscription', subscribePlan);
@@ -324,13 +329,26 @@ router.post('/auth/admin/sent-otp', adminSendOtp);
 router.post('/auth/exist/admin/verify-otp', existAdminVerifyOtp);
 router.post('/auth/new/admin/verify-otp', newAdminVerifyOtp);
 router.post('/auth/admin/reset-password', adminPasswordReset);
+router.get('/api/admin/verify-token',auth, verifyToken);
 
 /* --------------------- Admin Profile API --------------------- */
 // router.post('/admin/profile/detail/update',auth,upload.single('file'),uploadToCloudinary,adminProfileDetailUpdate);
 router.get('/get/admin/profile',auth,getAdminProfileDetail)
 
 /* --------------------- Admin Feed API --------------------- */
-router.post('/admin/feed-upload', upload.array('file'),auth,adminFeedUpload);
+router.post(
+  "/admin/feed-upload",
+  auth,
+  upload.array("file"), // ✅ matches frontend append("file", file)
+  (req, res, next) => {
+    req.baseUrl = "/feed";
+    next();
+  },
+  processFeedFile,
+  uploadToCloudinary,
+  adminFeedUpload
+);
+
 
 /* --------------------- Admin Category API --------------------- */
 router.post('/admin/feed/category', adminAddCategory);
@@ -377,11 +395,11 @@ router.get('/admin/get/user/detail', getUserProfileDetail);
 router.get('/get/child/admin/profile',auth,getChildAdminProfileDetail)
 
 /* --------------------- Child Admin Feed API --------------------- */
-router.post('/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
+router.post('/child/admin/feed', upload.array('file'),auth,childAdminFeedUpload);
 
 
 /* --------------------- Feeds API --------------------- */
- router.post('/get/creator/detail/feed/:feedId',auth,getUserInfoAssociatedFeed);
+ router.get('/get/creator/detail/feed/:feedId',auth,getUserInfoAssociatedFeed);
  router.get('/get/user/hide/post',auth,getUserHidePost);
 // router.post('/feeds/watchedbyuser', feedsWatchByUser);
 

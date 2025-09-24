@@ -1,240 +1,147 @@
 const mongoose = require("mongoose");
 const User = require("../../models/userModels/userModel");
-const ReferralEdge = require("../../models/userModels/userRefferalModels/refferalEdgeModle");
-const DirectFinisher = require("../../models/userModels/userRefferalModels/directFinishersModel");
 const UserLevel = require("../../models/userModels/userRefferalModels/userReferralLevelModel");
 const UserEarning = require("../../models/userModels/userRefferalModels/referralEarnings");
-const HeldReferral = require("../../models/userModels/userRefferalModels/heldUsers");
 
-const LEVEL_SHARE_AMOUNT = 250;
+const LEVEL_AMOUNT = 250;
+const MAX_LEVEL = 10;
+const MAX_RETRIES = 5;
 
-function computePerSideThreshold(level) {
-  const relativeLevel = ((level - 1) % 10) + 1;
-  return Math.pow(2, relativeLevel - 1);
-}
-function computeTotalUsers(level) {
-  return Math.pow(2, level);
+function computeThreshold(level) {
+  return Math.pow(2, level); // Level 1 → 2 users, Level 2 → 4, etc.
 }
 
-async function getOrCreateUserLevel(userId, level, session = null) {
-  const threshold = computePerSideThreshold(level);
-  const tier = Math.ceil(level / 10);
+// Get or create a UserLevel document for a user/tier/level
+async function getOrCreateUserLevel(userId, tier, level, session) {
+  const threshold = computeThreshold(level);
   await UserLevel.updateOne(
-    { userId, level },
-    {
-      $setOnInsert: {
-        userId,
-        level,
-        tier,
-        threshold,
-        leftTreeCount: 0,
-        rightTreeCount: 0,
-        leftCarryOver: 0,
-        rightCarryOver: 0,
-        leftUsers: [],
-        rightUsers: [],
-        shareAmount: LEVEL_SHARE_AMOUNT,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    },
+    { userId, tier, level },
+    { $setOnInsert: { userId, tier, level, threshold, leftUsers: [], rightUsers: [], holdingUsers: [] } },
     { upsert: true, session }
   );
-  return UserLevel.findOne({ userId, level }).session(session);
+  return UserLevel.findOne({ userId, tier, level }).session(session);
 }
 
-async function onSubscriptionActivated(childId) {
+// Main referral processing
+async function processReferral(childId) {
   if (!childId) throw new Error("childId required");
 
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
+  const child = await User.findById(childId);
+  if (!child || !child.referredByUserId) return;
 
-    const edges = await ReferralEdge.find({ childId }).session(session);
-    for (const edge of edges) {
-      await ReferralEdge.updateOne(
-        { _id: edge._id },
-        { $set: { status: "finished", completedAt: new Date(), updatedAt: new Date() } },
-        { session }
-      );
-      await DirectFinisher.updateOne(
-        { parentId: edge.parentId, childId },
-        {
-          $set: {
-            parentId: edge.parentId,
-            childId,
-            side: edge.side,
-            status: "finished",
-            level: edge.level,
-            updatedAt: new Date(),
-          },
-          $setOnInsert: { createdAt: new Date() },
-        },
-        { upsert: true, session }
-      );
-    }
+  let ancestorId = child.referredByUserId;
+  let tier = 0;
+  let levelUp = 1;
 
-    let currentChild = await User.findById(childId).session(session);
-    if (!currentChild) {
-      await session.commitTransaction();
-      session.endSession();
-      return;
-    }
+  while (ancestorId && levelUp <= MAX_LEVEL) {
+    let attempt = 0;
+    let success = false;
 
-    let ancestorId = currentChild.referredByUserId;
-    let levelUp = 1;
+    while (!success && attempt < MAX_RETRIES) {
+      attempt++;
 
-    while (ancestorId && levelUp <= 10) {
-      const ancestor = await User.findById(ancestorId).session(session);
-      if (!ancestor) break;
+      const session = await mongoose.startSession();
+      session.startTransaction();
 
-      // find ancestor->child side
-      let walker = currentChild;
-      let immediateChildUnderAncestor = null;
-      while (
-        walker &&
-        walker.referredByUserId &&
-        walker.referredByUserId.toString() !== ancestorId.toString()
-      ) {
-        walker = await User.findById(walker.referredByUserId).session(session);
-      }
-      if (walker && walker.referredByUserId?.toString() === ancestorId.toString()) {
-        immediateChildUnderAncestor = walker._id;
-      }
-      let side = null;
-      if (immediateChildUnderAncestor) {
-        const ancestorEdge = await ReferralEdge.findOne({
-          parentId: ancestorId,
-          childId: immediateChildUnderAncestor,
-        }).session(session);
-        if (ancestorEdge) side = ancestorEdge.side;
-      }
+      try {
+        const ancestor = await User.findById(ancestorId).session(session);
+        if (!ancestor) break;
 
-      if (ancestor.subscription?.isActive) {
-        const userLevelDoc = await getOrCreateUserLevel(ancestorId, levelUp, session);
+        const userLevel = await getOrCreateUserLevel(ancestor._id, tier, levelUp, session);
 
-        if (side === "left") {
-          if (!userLevelDoc.leftUsers.some((id) => id.toString() === childId.toString())) {
-            await UserLevel.updateOne(
-              { userId: ancestorId, level: levelUp },
-              { $push: { leftUsers: childId }, $inc: { leftTreeCount: 1 } },
-              { session }
-            );
-          }
-        } else if (side === "right") {
-          if (!userLevelDoc.rightUsers.some((id) => id.toString() === childId.toString())) {
-            await UserLevel.updateOne(
-              { userId: ancestorId, level: levelUp },
-              { $push: { rightUsers: childId }, $inc: { rightTreeCount: 1 } },
-              { session }
-            );
-          }
-        }
+        // Determine left/right/holding
+        const leftCount = userLevel.leftUsers.length;
+        const rightCount = userLevel.rightUsers.length;
+        const threshold = computeThreshold(levelUp) / 2;
 
-        const totalUsers = computeTotalUsers(levelUp);
-        const earningAmt = parseFloat((LEVEL_SHARE_AMOUNT / totalUsers).toFixed(6));
-        await UserEarning.create(
-          [{ userId: ancestorId, fromUserId: childId, level: levelUp, amount: earningAmt, isPartial: true }],
-          { session }
-        );
-        await User.updateOne(
-          { _id: ancestorId },
-          { $inc: { totalEarnings: earningAmt, withdrawableEarnings: earningAmt } },
+        let field = null;
+        if (leftCount < threshold) field = "leftUsers";
+        else if (rightCount < threshold) field = "rightUsers";
+        else field = "holdingUsers"; // extra users
+
+        // Add child safely
+        await UserLevel.updateOne(
+          { _id: userLevel._id },
+          { $addToSet: { [field]: child._id } },
           { session }
         );
 
-        const updatedLevel = await UserLevel.findOne({
+        // Earnings distribution (always propagate, even for holdingUsers)
+        const existingEarning = await UserEarning.findOne({
           userId: ancestorId,
+          fromUserId: childId,
           level: levelUp,
+          tier
         }).session(session);
-        const perSide = updatedLevel.threshold;
 
-        if (updatedLevel.leftTreeCount >= perSide && updatedLevel.rightTreeCount >= perSide) {
-          const nextLevel = levelUp + 1;
+        const earningAmount = LEVEL_AMOUNT / computeThreshold(levelUp);
 
-          // ✅ Pull held referrals for this ancestor at this level
-          const held = await HeldReferral.find({ parentId: ancestorId, level: levelUp }).session(
-            session
-          );
-          for (const h of held) {
-            const targetSide = h.side;
-            await UserLevel.updateOne(
-              { userId: ancestorId, level: nextLevel },
-              {
-                $push:
-                  targetSide === "left"
-                    ? { leftUsers: h.userId }
-                    : { rightUsers: h.userId },
-                $inc:
-                  targetSide === "left"
-                    ? { leftTreeCount: 1 }
-                    : { rightTreeCount: 1 },
-              },
-              { upsert: true, session }
-            );
-          }
-          await HeldReferral.deleteMany({ parentId: ancestorId, level: levelUp }).session(session);
+        if (!existingEarning) {
+          await UserEarning.create([{
+            userId: ancestorId,
+            fromUserId: childId,
+            level: levelUp,
+            tier,
+            amount: earningAmount,
+            isPartial: true
+          }], { session });
 
-          await getOrCreateUserLevel(ancestorId, nextLevel, session);
+          const total = (ancestor.totalEarnings || 0) + earningAmount;
+          const withdrawn = ancestor.withdrawnEarnings || 0;
+          const balance = total - withdrawn;
+
           await User.updateOne(
             { _id: ancestorId },
-            {
-              $set: {
-                currentLevel: nextLevel,
-                currentTier: Math.ceil(nextLevel / 10),
-                lastPromotedAt: new Date(),
-                isTierComplete: nextLevel % 10 === 0,
-              },
-            },
+            { $set: { totalEarnings: total, balanceEarnings: balance } },
             { session }
-          );
-        } else {
-          // ❌ Not balanced → hold this child
-          await HeldReferral.updateOne(
-            { parentId: ancestorId, userId: childId, level: levelUp },
-            { $setOnInsert: { side, createdAt: new Date() } },
-            { upsert: true, session }
           );
         }
 
-        if (levelUp === 1) {
-          const directSubscribed = await DirectFinisher.countDocuments({
-            parentId: ancestorId,
-            status: "finished",
-          }).session(session);
+        // Promotion only when left/right full
+        if (leftCount + (field === "leftUsers" ? 1 : 0) === threshold &&
+            rightCount + (field === "rightUsers" ? 1 : 0) === threshold) {
+
+          // Move total to withdrawn
+          const updatedAncestor = await User.findById(ancestorId).session(session);
+          const newWithdrawn = (updatedAncestor.withdrawnEarnings || 0) + (updatedAncestor.totalEarnings || 0);
+
           await User.updateOne(
             { _id: ancestorId },
-            { $set: { directSubscribedCount: directSubscribed } },
+            { $set: { withdrawnEarnings: newWithdrawn, balanceEarnings: 0 } },
             { session }
           );
-          if (directSubscribed >= 2 && ancestor.referralCodeIsValid) {
-            await User.updateOne(
-              { _id: ancestorId },
-              { $set: { referralCodeIsValid: false } },
-              { session }
-            );
+
+          // Move holdingUsers to next level
+          const holdingUsers = userLevel.holdingUsers || [];
+          for (const heldId of holdingUsers) {
+            const nextLevel = levelUp + 1 > MAX_LEVEL ? 1 : levelUp + 1;
+            const nextTier = levelUp + 1 > MAX_LEVEL ? tier + 1 : tier;
+            await processReferral(heldId); // recursively process held users
+          }
+
+          // Advance level/tier
+          levelUp++;
+          if (levelUp > MAX_LEVEL) {
+            tier++;
+            levelUp = 1;
           }
         }
+
+        await session.commitTransaction();
+        session.endSession();
+        success = true;
+      } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
+        if (err.message.includes("Write conflict") && attempt < MAX_RETRIES) continue;
+        throw err;
       }
-
-      currentChild = ancestor;
-      ancestorId = ancestor.referredByUserId;
-      levelUp++;
     }
 
-    await session.commitTransaction();
-  } catch (err) {
-    await session.abortTransaction();
-    console.error("onSubscriptionActivated error:", err);
-    throw err;
-  } finally {
-    session.endSession();
+    const ancestor = await User.findById(ancestorId);
+    if (!ancestor || !ancestor.referredByUserId) break;
+    ancestorId = ancestor.referredByUserId;
   }
 }
 
-module.exports = {
-  computePerSideThreshold,
-  computeTotalUsers,
-  onSubscriptionActivated,
-  getOrCreateUserLevel,
-};
+module.exports = { processReferral, getOrCreateUserLevel };

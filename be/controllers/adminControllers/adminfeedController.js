@@ -1,74 +1,71 @@
 const FeedService = require("../../middlewares/services/AdminServices/adminUploadfileService");
-const ChildAdmin =require("../../models/childAdminModel")
+const ChildAdmin =require("../../models/childAdminModel");
+const Category=require('../../models/categorySchema');
 
 
 
 exports.adminFeedUpload = async (req, res) => {
   try {
     const userId = req.Id || req.body.userId;
-    if (!userId) {
-      return res.status(400).json({ message: "User ID is required" });
+    if (!userId) return res.status(400).json({ message: "User ID is required" });
+
+    const { language, categoryId, type } = req.body;
+
+    // Validate inputs
+    if (!language || !categoryId || !type || !["image", "video"].includes(type)) {
+      return res.status(400).json({ message: "Invalid language, categoryId or type" });
     }
 
-    const { language, categoryId } = req.body;
+    // Ensure files
+    const originalFiles = req.files || [];
+    if (originalFiles.length === 0) return res.status(400).json({ message: "No files uploaded" });
 
-    // ✅ Validate language
-    if (!language) {
-      return res.status(400).json({ message: "Language is required" });
+    const cloudFiles = req.cloudinaryFiles || [];
+    if (cloudFiles.length !== originalFiles.length) {
+      return res.status(400).json({ message: "Mismatch between uploaded files and Cloudinary files" });
     }
 
-    // ✅ Validate categoryId
-    if (!categoryId) {
-      return res.status(400).json({ message: "CategoryId is required" });
-    }
+    // ✅ Track already uploaded files to prevent duplicates
+    const uploadedFilesSet = new Set();
 
-    // ✅ Ensure category exists
-    const categoryDoc = await Category.findById(categoryId);
-    if (!categoryDoc) {
-      return res.status(404).json({ message: "Category not found" });
-    }
+    const feedResults = await Promise.all(
+      cloudFiles.map((cloudFile, index) => {
+        const fileKey = cloudFile.url || cloudFile.secure_url || originalFiles[index].originalname;
+        if (uploadedFilesSet.has(fileKey)) return null; // skip duplicate
+        uploadedFilesSet.add(fileKey);
 
-    // ✅ Single file upload
-    if (req.file) {
-      const result = await FeedService.uploadFeed(
-        { ...req.body, language, categoryId },
-        req.file,
-        userId
-      );
+        return FeedService.uploadFeed(
+          { language, categoryId, type },
+          {
+            ...cloudFile,
+            originalname: originalFiles[index].originalname,
+            mimetype: originalFiles[index].mimetype,
+          },
+          userId
+        );
+      })
+    );
 
-      return res.status(201).json({
-        message: "Feed uploaded successfully",
-        feeds: [result.feed], // always return array
-        categories: [result.categoryId],
-        language: result.language,
-        roleType: result.roleType,
-      });
-    }
+    const filteredResults = feedResults.filter(Boolean); // remove nulls
 
-    // ✅ Multiple files upload
-    if (req.files && req.files.length > 0) {
-      const results = await FeedService.uploadFeedsMultiple(
-        { ...req.body, language, categoryId },
-        req.files,
-        userId
-      );
-
-      return res.status(201).json({
-        message: "All feeds uploaded successfully",
-        feeds: results.map(r => r.feed),
-        categories: results.map(r => r.categoryId),
-        languages: results.map(r => r.language),
-        roleTypes: results.map(r => r.roleType),
-      });
-    }
-
-    return res.status(400).json({ message: "No files uploaded" });
-
+    return res.status(201).json({
+      message: filteredResults.length > 1 ? "All feeds uploaded successfully" : "Feed uploaded successfully",
+      feeds: filteredResults.map(r => r.feed),
+      categories: filteredResults.map(r => r.categoryId),
+      languages: filteredResults.map(r => r.language),
+      roleTypes: filteredResults.map(r => r.roleType),
+      types: filteredResults.map(r => r.type),
+    });
   } catch (error) {
     console.error("Error uploading feed:", error);
     return res.status(500).json({ message: error.message || "Server error" });
   }
 };
+
+
+
+
+
 
 
 

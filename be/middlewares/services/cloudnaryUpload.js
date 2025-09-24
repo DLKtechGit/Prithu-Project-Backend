@@ -28,86 +28,101 @@ const getVideoDurationFromBuffer = async (buffer) => {
   return await getVideoDurationInSeconds(stream);
 };
 
-// Middleware: check duplicates & video duration in parallel
+// Middleware: check duplicates & video duration in parallel (supports multiple files)
 const processFeedFile = async (req, res, next) => {
-  if (!req.file) return next();
-console.log("hi")
+  // Handle multiple files
+  const files = req.files || (req.file ? [req.file] : []);
+  if (files.length === 0) return next();
+
   try {
-    const buffer = req.file.buffer;
+    // Process all files in parallel
+    await Promise.all(
+      files.map(async (file) => {
+        const buffer = file.buffer;
 
-    // Start parallel tasks
-    const hashPromise = generateFileHash(buffer);
-    const durationPromise =
-      req.file.mimetype.startsWith("video/") ? getVideoDurationFromBuffer(buffer) : Promise.resolve(null);
+        // Hash
+        const fileHash = generateFileHash(buffer);
+        file.fileHash = fileHash; // store on file object
 
-    // Wait for results
-    const [fileHash, videoDuration] = await Promise.all([hashPromise, durationPromise]);
+        // Video duration
+        let videoDuration = null;
+        if (file.mimetype.startsWith("video/")) {
+          videoDuration = await getVideoDurationFromBuffer(buffer);
+          file.videoDuration = videoDuration;
+        }
 
-    req.fileHash = fileHash;
-    req.videoDuration = videoDuration;
+        // Check duplicates
+        const existingFeed = await Feed.findOne({ fileHash }).lean();
+        if (existingFeed) {
+          throw { status: 409, message: "This file already exists", feedId: existingFeed._id };
+        }
 
-    // ✅ Check duplicates
-    const existingFeed = await Feed.findOne({ fileHash }).lean();
-    if (existingFeed) {
-      return res.status(409).json({ message: "This file already exists", feedId: existingFeed._id });
-    }
-
-    // ✅ Check video duration limit
-    if (videoDuration && videoDuration > 60) {
-      return res.status(400).json({ message: "Video duration exceeds 30 seconds" });
-    }
+        // Check video duration limit
+        if (videoDuration && videoDuration > 60) {
+          throw { status: 400, message: "Video duration exceeds 60 seconds" };
+        }
+      })
+    );
 
     next();
   } catch (err) {
-    console.error("Error processing feed file:", err);
-    return res.status(500).json({ message: "Error processing file" });
+    const status = err.status || 500;
+    const message = err.message || "Error processing file(s)";
+    return res.status(status).json({ message });
   }
 };
 
-// Upload to Cloudinary with compression
+// Upload to Cloudinary (supports multiple files)
 const uploadToCloudinary = async (req, res, next) => {
-  if (!req.file) return next();
+  const files = req.files || (req.file ? [req.file] : []);
+  if (files.length === 0) return next();
 
   try {
-    const bufferStream = new Readable();
-    bufferStream.push(req.file.buffer);
-    bufferStream.push(null);
+    const cloudinaryResults = await Promise.all(
+      files.map(async (file) => {
+        const bufferStream = new Readable();
+        bufferStream.push(file.buffer);
+        bufferStream.push(null);
 
-    // Decide folder
-    let folder = "others";
-    if (req.baseUrl.includes("feed")) {
-      folder = req.file.mimetype.startsWith("image/") ? "feeds/images" : "feeds/videos";
-    } else if (req.baseUrl.includes("profile")) {
-      folder = "profile/images";
-    }
-
-    const isVideo = req.file.mimetype.startsWith("video/");
-
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-          resource_type: isVideo ? "video" : "image", // ✅ explicitly set video
-          quality: "auto:good",
-          fetch_format: "auto",
-          transformation: isVideo ? [] : [{ width: 500, height: 500, crop: "limit" }],
-          eager: isVideo ? [{ format: "mp4", quality: "auto" }] : [],
-          eager_async: isVideo ? true : false, // ✅ async for large video
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
+        let folder = "others";
+        if (req.baseUrl.includes("feed")) {
+          folder = file.mimetype.startsWith("image/") ? "feeds/images" : "feeds/videos";
+        } else if (req.baseUrl.includes("profile")) {
+          folder = "profile/images";
         }
-      );
 
-      bufferStream.pipe(stream);
-    });
+        const isVideo = file.mimetype.startsWith("video/");
 
-    req.cloudinaryFile = {
-      url: result.secure_url,
-      public_id: result.public_id,
-    };
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder,
+              resource_type: isVideo ? "video" : "image",
+              quality: "auto:good",
+              fetch_format: "auto",
+              transformation: isVideo ? [] : [{ width: 500, height: 500, crop: "limit" }],
+              eager: isVideo ? [{ format: "mp4", quality: "auto" }] : [],
+              eager_async: isVideo ? true : false,
+            },
+            (error, result) => {
+              if (error) return reject(error);
+              resolve(result);
+            }
+          );
+          bufferStream.pipe(stream);
+        });
 
+        file.cloudinary = {
+          url: result.secure_url,
+          public_id: result.public_id,
+        };
+
+        return file.cloudinary;
+      })
+    );
+
+    // Attach results to req for controller
+    req.cloudinaryFiles = cloudinaryResults;
     next();
   } catch (err) {
     console.error("Cloudinary upload error:", err);
